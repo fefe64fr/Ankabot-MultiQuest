@@ -25,13 +25,13 @@ local currentDirectory = "E:\\Dofus botting\\Scripts\\Trajets\\AnkaBot\\Ankabot-
     local currentQuest, currentStep
 
     local GID_STUFF = { 
-        ["Coiffe"] = { gid = 2474, lvl = 12, pos = 6 },
-        ["Cape"] = { gid = 2473, lvl = 9, pos = 7 },
-        ["Amulette"] = { gid = 2478, lvl = 7, pos = 0 },
+        ["Coiffe"] = { gid = 8246, lvl = 8, pos = 6 },
+        ["Cape"] = { gid = 8233, lvl = 10, pos = 7 },
+        ["Amulette"] = { gid = 8216, lvl = 7, pos = 0 },
         ["Anneau n°1"] = { gid = 2475, lvl = 8, pos = 2 },
-        ["Anneau n°2"] = { gid = 19622, lvl = 1, pos = 4 },
-        ["Ceinture"] = { gid = 2477, lvl = 10, pos = 3 },
-        ["Bottes"] = { gid = 2476, lvl = 11, pos = 5 }
+        ["Anneau n°2"] = { gid = 8222, lvl = 12, pos = 4 },
+        ["Ceinture"] = { gid = 8246, lvl = 9, pos = 3 },
+        ["Bottes"] = { gid = 8228, lvl = 11, pos = 5 }
     }
 
 -- Fight func var 
@@ -154,12 +154,12 @@ local currentDirectory = "E:\\Dofus botting\\Scripts\\Trajets\\AnkaBot\\Ankabot-
                 for packetName, callBack in pairs(vPacketTbl) do
                     if register then -- Abonnement au packet
                         if not developer:isMessageRegistred(packetName) then
-                            Print("Abonnement au packet : "..packetName, "packet")
+                            --Print("Abonnement au packet : "..packetName, "packet")
                             developer:registerMessage(packetName, callBack)
                         end            
                     else -- Désabonnement des packet
                         if developer:isMessageRegistred(packetName) then
-                            Print("Désabonnement du packet : "..packetName, "packet")
+                            --Print("Désabonnement du packet : "..packetName, "packet")
                             developer:unRegisterMessage(packetName)
                         end            
                     end
@@ -169,7 +169,7 @@ local currentDirectory = "E:\\Dofus botting\\Scripts\\Trajets\\AnkaBot\\Ankabot-
     end
 
     function PacketSender(packetName, fn)
-        Print("Envoie du packet "..packetName, "packet")
+        --Print("Envoie du packet "..packetName, "packet")
         local msg = developer:createMessage(packetName)
 
         if fn ~= nil then
@@ -268,7 +268,7 @@ local currentDirectory = "E:\\Dofus botting\\Scripts\\Trajets\\AnkaBot\\Ankabot-
             stepSelected = true 
         end
 
-        if currentStep ~= nil then -- Éxécution de l'étape
+        if currentStep.EXECUTE ~= nil then -- Éxécution de l'étape
             --Print("Éxécution de l'étape")
 
             if not stepInfoDisplayed then
@@ -279,6 +279,10 @@ local currentDirectory = "E:\\Dofus botting\\Scripts\\Trajets\\AnkaBot\\Ankabot-
             if CheckIfQuestFinish(currentQuest.questId) then
                 EndQuest()
                 return move()
+            end
+
+            if currentQuest.preStartFunction ~= nil then
+                currentQuest.preStartFunction("yo")
             end
 
             if currentStep.stepStartMapId ~= nil then
@@ -804,12 +808,24 @@ local currentDirectory = "E:\\Dofus botting\\Scripts\\Trajets\\AnkaBot\\Ankabot-
                 end
             end
         end
+        local tmp = false
+
+        if #MAP_DATA_MONSTERS == 0 then
+            tmp = true
+        end
 
         MAP_DATA_MONSTERS = {}
+
+        if false then
+            PacketSender("MapInformationsRequestMessage", function(msg)
+                msg.mapId = map:currentMapId()
+                return msg
+            end)
+        end
+
         developer:unRegisterMessage("GameMapMovementMessage")
         developer:unRegisterMessage("GameContextRemoveElementMessage")
         developer:unRegisterMessage("GameRolePlayShowActorMessage")
-
     end
 
     function TryAttack(ctxId)
@@ -823,7 +839,6 @@ local currentDirectory = "E:\\Dofus botting\\Scripts\\Trajets\\AnkaBot\\Ankabot-
         if not developer:suspendScriptUntil("GameFightStartingMessage", 2500, false) then
             Print("Le lancement du combat a échoué", "TryAttack", "error")
         else
-            Print("ici")
             MAP_DATA_MONSTERS = {}
         end
     end
@@ -1314,7 +1329,6 @@ local currentDirectory = "E:\\Dofus botting\\Scripts\\Trajets\\AnkaBot\\Ankabot-
             if map:currentMapId() == v then
                 return true
             end
-            global:delay(2)
         end
         return false
     end
@@ -1480,11 +1494,12 @@ local currentDirectory = "E:\\Dofus botting\\Scripts\\Trajets\\AnkaBot\\Ankabot-
 -- Quête Info
 
     QUEST = {
-        ["Drop pano aventurier"] = {
+        ["Drop pano Aventurier"] = {
             questId = 0000000000,
             minLevel = 12,
             bypassCondEndStep = true,
             notStepInfo = true,
+            cantStart = true,
             stepInfo = { 
                 ["START"] = {
                     displayInfo = "Étape 0 / 6 -- Start",
@@ -1651,6 +1666,271 @@ local currentDirectory = "E:\\Dofus botting\\Scripts\\Trajets\\AnkaBot\\Ankabot-
                             if InMapChecker(tblMapId) then
                                 Fight(confMonster)
                             end
+                            RoadZone(tblMapId)
+                        end
+                    end
+                }
+            }
+        },
+        ["Drop pano Piou"] = {
+            questId = 0000000001,
+            minLevel = 12,
+            bypassCondEndStep = true,
+            notStepInfo = true,
+            colorPano = "Vert",
+            idPano = {
+                ["Coiffe"] = {
+                    ["Rouge"] = 8243,
+                    ["Bleu"] = 8244,
+                    ["Violet"] = 8245,
+                    ["Vert"] = 8246,
+                    ["Jaune"] = 8247,
+                    ["Rose"] = 8248
+                },
+                ["Cape"] = {
+                    ["Rouge"] = 8231,
+                    ["Bleu"] = 8232,
+                    ["Violet"] = 8234,
+                    ["Vert"] = 8233,
+                    ["Jaune"] = 8236,
+                    ["Rose"] = 8235
+                },
+                ["Ceinture"] = {
+                    ["Rouge"] = 8237,
+                    ["Bleu"] = 8238,
+                    ["Violet"] = 8239,
+                    ["Vert"] = 8240,
+                    ["Jaune"] = 8241,
+                    ["Rose"] = 8242
+                },
+                ["Bottes"] = {
+                    ["Rouge"] = 8225,
+                    ["Bleu"] = 8226,
+                    ["Violet"] = 8227,
+                    ["Vert"] = 8228,
+                    ["Jaune"] = 8229,
+                    ["Rose"] = 8230
+                },
+                ["Anneau"] = {
+                    ["Rouge"] = 8219,
+                    ["Bleu"] = 8220,
+                    ["Violet"] = 8221,
+                    ["Vert"] = 8222,
+                    ["Jaune"] = 8223,
+                    ["Rose"] = 8234
+                },
+                ["Amulette"] = {
+                    ["Rouge"] = 8213,
+                    ["Bleu"] = 8214,
+                    ["Violet"] = 8215,
+                    ["Vert"] = 8216,
+                    ["Jaune"] = 8217,
+                    ["Rose"] = 8218
+                }
+            },
+            idMonsters = {
+                ["Rouge"] = 489,
+                ["Bleu"] = 491,
+                ["Violet"] = 236,
+                ["Vert"] = 490,
+                ["Jaune"] = 493,
+                ["Rose"] = 492
+            },
+            getPanoId = function(type)
+                for kType, vTblId in pairs(currentQuest.idPano) do
+                    if isStringEqual(kType, type) then
+                        for kColor, id in pairs(vTblId) do
+                            if isStringEqual(kColor, currentQuest.colorPano) then
+                                return id
+                            end
+                        end
+                    end
+                end
+            end,
+            getIdMonster = function()
+                for kColor, id in pairs(currentQuest.idMonsters) do
+                    if isStringEqual(kColor, currentQuest.colorPano) then
+                        return id
+                    end
+                end
+            end,
+            stepInfo = { 
+                ["START"] = {
+                    displayInfo = "Étape 0 / 6 -- Start",
+                    ["EXECUTE"] = function(stepStartMapId)
+
+                        local objecttives = {
+                            {
+                                objecttiveId = 1,
+                                objecttiveStatus = true
+                            },
+                            {
+                                objecttiveId = 2,
+                                objecttiveStatus = true
+                            },
+                            {
+                                objecttiveId = 3,
+                                objecttiveStatus = true
+                            },
+                            {
+                                objecttiveId = 4,
+                                objecttiveStatus = true
+                            },
+                            {
+                                objecttiveId = 5,
+                                objecttiveStatus = true
+                            },
+                            {
+                                objecttiveId = 6,
+                                objecttiveStatus = true
+                            }
+                        }
+
+                        local tblPanoId = {}
+
+                        for k, _ in pairs(currentQuest.idPano) do
+                            table.insert(tblPanoId, currentQuest.getPanoId(k))
+                        end
+
+                        local checker = function(tbl)
+                            for _, v in pairs(tbl) do
+                                if inventory:itemCount(v) < 1 then
+                                    return false
+                                end
+                            end
+                            return true
+                        end
+
+                        if checker(tblPanoId) then
+                            AddQuestActive(0000000001, objecttives)
+                            DeleteActiveQuest(0000000001)
+                        else
+                            AddQuestActive(0000000001, objecttives)
+                        end
+                    end   
+                }, 
+                ["1"] = {
+                    displayInfo = "Étape 1 / 6 -- Drop cape Piou",
+                    ["EXECUTE"] = function()
+                        local tblMapId = Get_TblZoneSubArea("Astrub", "Cité d'Astrub")
+
+                        local confMonster = {
+                            minMonster = 1,
+                            maxMonster = 2,
+                            conf = {{ idMonster = currentQuest.getIdMonster(), min = 1, max = 8 }}
+                        }
+
+                        if inventory:itemCount(currentQuest.getPanoId("Cape")) > 0 then
+                            EditQuestObjecttives(0000000001, 1, false)
+                        else
+                            if InMapChecker(tblMapId) then
+                                Fight(confMonster)
+                            end                        
+                            RoadZone(tblMapId)
+                        end
+                    end
+                },
+                ["2"] = {
+                    displayInfo = "Étape 2 / 6 -- Drop coiffe Piou",
+                    ["EXECUTE"] = function()
+                        local tblMapId = Get_TblZoneSubArea("Astrub", "Cité d'Astrub")
+
+                        local confMonster = {
+                            minMonster = 1,
+                            maxMonster = 2,
+                            conf = {{ idMonster = currentQuest.getIdMonster(), min = 1, max = 8 }}
+                        }
+
+                        if inventory:itemCount(currentQuest.getPanoId("Coiffe")) > 0 then
+                            EditQuestObjecttives(0000000001, 2, false)
+                        else
+                            if InMapChecker(tblMapId) then
+                                Fight(confMonster)
+                            end                        
+                            RoadZone(tblMapId)
+                        end
+                    end
+                }, 
+                ["3"] = {
+                    displayInfo = "Étape 3 / 6 -- Drop anneau Piou",
+                    ["EXECUTE"] = function()
+                        local tblMapId = Get_TblZoneSubArea("Astrub", "Cité d'Astrub")
+
+                        local confMonster = {
+                            minMonster = 1,
+                            maxMonster = 2,
+                            conf = {{ idMonster = currentQuest.getIdMonster(), min = 1, max = 8 }}
+                        }
+
+                        if inventory:itemCount(currentQuest.getPanoId("Anneau")) > 0 then
+                            EditQuestObjecttives(0000000001, 3, false)
+                        else
+                            if InMapChecker(tblMapId) then
+                                Fight(confMonster)
+                            end                        
+                            RoadZone(tblMapId)
+                        end
+                    end
+                }, 
+                ["4"] = {
+                    displayInfo = "Étape 4 / 6 -- Drop bottes Piou",
+                    ["EXECUTE"] = function()
+                        local tblMapId = Get_TblZoneSubArea("Astrub", "Cité d'Astrub")
+
+                        local confMonster = {
+                            minMonster = 1,
+                            maxMonster = 2,
+                            conf = {{ idMonster = currentQuest.getIdMonster(), min = 1, max = 8 }}
+                        }
+
+                        if inventory:itemCount(currentQuest.getPanoId("Bottes")) > 0 then
+                            EditQuestObjecttives(0000000001, 4, false)
+                        else
+                            if InMapChecker(tblMapId) then
+                                Fight(confMonster)
+                            end                        
+                            RoadZone(tblMapId)
+                        end
+                    end
+                },       
+                ["5"] = {
+                    displayInfo = "Étape 5 / 6 -- Drop ceinture Piou",
+                    ["EXECUTE"] = function()
+                        local tblMapId = Get_TblZoneSubArea("Astrub", "Cité d'Astrub")
+
+                        local confMonster = {
+                            minMonster = 1,
+                            maxMonster = 2,
+                            conf = {{ idMonster = currentQuest.getIdMonster(), min = 1, max = 8 }}
+                        }
+
+                        if inventory:itemCount(currentQuest.getPanoId("Ceinture")) > 0 then
+                            EditQuestObjecttives(0000000001, 5, false)
+                        else
+                            if InMapChecker(tblMapId) then
+                                Fight(confMonster)
+                            end                        
+                            RoadZone(tblMapId)
+                        end
+                    end
+                },       
+                ["6"] = {
+                    displayInfo = "Étape 6 / 6 -- Drop amulette Piou",
+                    ["EXECUTE"] = function()
+                        local tblMapId = Get_TblZoneSubArea("Astrub", "Cité d'Astrub")
+
+                        local confMonster = {
+                            minMonster = 1,
+                            maxMonster = 2,
+                            conf = {{ idMonster = currentQuest.getIdMonster(), min = 1, max = 8 }}
+                        }
+
+                        if inventory:itemCount(currentQuest.getPanoId("Amulette")) > 0 then
+                            DeleteActiveQuest(0000000001)
+                        else
+                            if InMapChecker(tblMapId) then
+                                Fight(confMonster)
+                            end                        
                             RoadZone(tblMapId)
                         end
                     end
@@ -4144,7 +4424,7 @@ local currentDirectory = "E:\\Dofus botting\\Scripts\\Trajets\\AnkaBot\\Ankabot-
                             MoveNext()
                         end    
                     end
-                },
+                }
             }
         },
         ["Mort au rat !"] = {
@@ -4162,6 +4442,7 @@ local currentDirectory = "E:\\Dofus botting\\Scripts\\Trajets\\AnkaBot\\Ankabot-
                                 msg.questId = 1633
                                 return msg
                             end)
+                            developer:suspendScriptUntil("QuestStartedMessage", 1000, false)
                         else
                             MoveNext()
                         end
@@ -4170,7 +4451,7 @@ local currentDirectory = "E:\\Dofus botting\\Scripts\\Trajets\\AnkaBot\\Ankabot-
                 ["9895"] = {
                     displayInfo = "Étape 1 / 4 -- Inspecter la cave",
                     stepStartMapId = 153358340,
-                    ["EXECUTE"] = function()
+                    ["EXECUTE"] = function(stepStartMapId)
                         LoadRoadIfNotInMap(stepStartMapId)
         
                         if map:currentMapId() == stepStartMapId then -- Execution étape
@@ -4237,7 +4518,213 @@ local currentDirectory = "E:\\Dofus botting\\Scripts\\Trajets\\AnkaBot\\Ankabot-
                             MoveNext()
                         end    
                     end
+                }
+            }
+        },
+        ["Cryptologie"] = {
+            questId = 1638,
+            minLevel = 12,
+            stepInfo = { 
+                ["START"] = {
+                    displayInfo = "Étape 0 / 3 -- Récupérer la quête",
+                    stepStartMapId = 153881600,
+                    ["EXECUTE"] = function(stepStartMapId)
+                        local possibleIdReply = {
+                            24973,
+                            24970,
+                            24971
+                        }
+
+                        LoadRoadIfNotInMap(stepStartMapId)
+        
+                        if map:currentMapId() == stepStartMapId then -- Execution étape
+                            NpcDialogRequest(-20000)
+                            ReplyUntilLeave(possibleIdReply)
+                        else
+                            MoveNext()
+                        end
+                    end   
+                }, 
+                ["9811"] = {
+                    displayInfo = "Étape 1 / 3 -- Découvrir la carte : Salle du tombeau de kardorim",
+                    stepStartMapId = 153881600,
+                    ["EXECUTE"] = function(stepStartMapId)       
+                        if not InMapChecker(Get_TblZoneSubArea("Incarnam", "Crypte de Kardorim")) then
+                            local possibleIdReply = {
+                                24967,
+                                24966,
+                                24973,
+                                24970,
+                                24968,
+                                24971
+                            }
+
+                            LoadRoadIfNotInMap(stepStartMapId)
+
+                            if map:currentMapId() == stepStartMapId then -- Execution étape
+                                NpcDialogRequest(-20000)
+                                ReplyUntilLeave(possibleIdReply)
+                            else
+                                MoveNext()
+                            end  
+                        else
+                            local confMonster = {
+                                minMonster = 1,
+                                maxMonster = 8,
+                                conf = {}                        
+                            }
+
+                            if #MAP_DATA_MONSTERS < 1 then
+                                PacketSender("MapInformationsRequestMessage", function(msg)
+                                    msg.mapId = map:currentMapId()
+                                    return msg
+                                end)
+                            end
+
+                            Fight()
+                        end              
+                    end
                 },
+                ["9812"] = {
+                    displayInfo = "Étape 2 / 3 -- Vaincre x1 Kardorim",
+                    stepStartMapId = 153881600,
+                    ["EXECUTE"] = function(stepStartMapId)
+                        if not InMapChecker(Get_TblZoneSubArea("Incarnam", "Crypte de Kardorim")) then
+                            local possibleIdReply = {
+                                24967,
+                                24966,
+                                24973,
+                                24970,
+                                24968,
+                                24971
+                            }
+
+                            LoadRoadIfNotInMap(stepStartMapId)
+
+                            if map:currentMapId() == stepStartMapId then -- Execution étape
+                                NpcDialogRequest(-20000)
+                                ReplyUntilLeave(possibleIdReply)
+                            else
+                                MoveNext()
+                            end  
+                        else
+                            local confMonster = {
+                                minMonster = 1,
+                                maxMonster = 8,
+                                conf = {}                        
+                            } 
+
+                            if #MAP_DATA_MONSTERS < 1 then
+                                PacketSender("MapInformationsRequestMessage", function(msg)
+                                    msg.mapId = map:currentMapId()
+                                    return msg
+                                end)
+                            end
+
+                            Fight(confMonster)
+                        end                     
+                    end
+                },
+                ["FINISH"] = {
+                    displayInfo = "Étape 3 / 3 -- Allez voir Kardorim",
+                    stepStartMapId = 152835072,
+                    ["EXECUTE"] = function(stepStartMapId)
+                        if not InMapChecker(Get_TblZoneSubArea("Incarnam", "Crypte de Kardorim")) then
+                            local possibleIdReply = {
+                                24967,
+                                24966,
+                                24973,
+                                24970,
+                                24968,
+                                24971
+                            }
+
+                            LoadRoadIfNotInMap(stepStartMapId)
+
+                            if map:currentMapId() == stepStartMapId then -- Execution étape
+                                NpcDialogRequest(-20000)
+                                ReplyUntilLeave(possibleIdReply)
+                            else
+                                MoveNext()
+                            end  
+                        elseif map:currentMapId() ~= stepStartMapId then
+                            local confMonster = {
+                                minMonster = 1,
+                                maxMonster = 8,
+                                conf = {}                        
+                            } 
+
+                            if #MAP_DATA_MONSTERS < 1 then
+                                PacketSender("MapInformationsRequestMessage", function(msg)
+                                    msg.mapId = map:currentMapId()
+                                    return msg
+                                end)
+                            end
+
+                            Fight(confMonster)
+                        elseif map:currentMapId() == stepStartMapId then
+                            local possibleIdReply = {
+                                24993,
+                                24992,
+                                25000
+                            }
+                            NpcDialogRequest(-20000)
+                            ReplyUntilLeave(possibleIdReply)
+                        end                     
+                    end
+                }
+            }
+        },
+        ["Un peu de pigment"] = {
+            questId = 1655,
+            stepInfo = { 
+                ["START"] = {
+                    displayInfo = "Étape 0 / 1 -- Récupérer la quête",
+                    stepStartMapId = 153880325,
+                    ["EXECUTE"] = function(stepStartMapId)
+                        local possibleIdReply = {
+                            25487,
+                            25486,
+                            25485
+                        }
+
+                        LoadRoadIfNotInMap(stepStartMapId)
+        
+                        if map:currentMapId() == stepStartMapId then -- Execution étape
+                            NpcDialogRequest(-20000)
+                            ReplyUntilLeave(possibleIdReply)
+                        else
+                            MoveNext()
+                        end                    
+                    end   
+                }, 
+                ["FINISH"] = {
+                    displayInfo = "Étape 1 / 1 -- Ramener à Marylock : x3 Poudre d'Aminite",
+                    stepStartMapId = 153880325,
+                    ["EXECUTE"] = function(stepStartMapId)
+                        LoadRoadIfNotInMap(stepStartMapId)
+                        if inventory:itemCount(16999) < 3 then -- Relique d'incarnam
+                            local tblMapId = Get_TblZoneSubArea("Incarnam", "Mine")
+                            local confMonster = {
+                                minMonster = 1,
+                                maxMonster = 4,
+                                conf = {}                        
+                            } 
+
+                            if InMapChecker(tblMapId) then
+                                Fight(confMonster)
+                            end                        
+                            RoadZone(tblMapId)                    
+                        else
+                            if map:currentMapId() == stepStartMapId then -- Execution étape
+                                NpcDialogRequest(-20000)
+                                NpcReply(25489)                
+                            else
+                                MoveNext()
+                            end         
+                        end       
+                    end
+                }
             }
         },
     }
@@ -4309,6 +4796,67 @@ local currentDirectory = "E:\\Dofus botting\\Scripts\\Trajets\\AnkaBot\\Ankabot-
                 153358336,
                 153357314,
                 153357312
+            },
+            ["Crypte de Kardorim"] = {
+                152829952,
+                152830976,
+                152832000,
+                152833024,
+                152834048
+            }
+        },
+        ["Astrub"] = {
+            ["Cité d'Astrub"] = {
+                188746756,
+                188746755,
+                188746754,
+                188746753,
+                188746241,
+                188746242,
+                188745730,
+                188745729,
+                188745217,
+                188745218,
+                188744706,
+                188744705,
+                188744193,
+                188744194,
+                188743681,
+                188743682,
+                188743683,
+                188744195,
+                188744196,
+                188743684,
+                188743685,
+                188744197,
+                188744198,
+                188743686,
+                188743687,
+                188744199,
+                188744198,
+                188744710,
+                188744711,
+                188745223,
+                188745222,
+                188745734,
+                188745735,
+                188746247,
+                188746246,
+                188746759,
+                188746758,
+                188746757,
+                191106050,
+                191106048,
+                191105024,
+                191104000,
+                191102976,
+                191102978,
+                191102980,
+                191104004,
+                191105028,
+                191106052,
+                191105026,
+                191104002
             }
         }
     }

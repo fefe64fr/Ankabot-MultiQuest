@@ -16,7 +16,7 @@ local possibleIdReply = {
 local isDialog = false
 
 function move()
-    global:leaveDialog()
+    Print(map:currentArea().."    "..map:currentSubArea())
 end
 
 function NpcDialogRequest(npcId)
