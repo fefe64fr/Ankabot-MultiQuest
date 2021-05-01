@@ -79,6 +79,9 @@ AI_FILE = "ModSpellPriority.lua"
         Print("Le retour bank n'est pas inclus", "BANK", "error")
     end
 
+    function phenix()
+    end
+
     function stopped()
         local allQuestFinished, impossibleStartQuest = CheckIfAllQuestFinish()
         if allQuestFinished then
@@ -278,7 +281,11 @@ AI_FILE = "ModSpellPriority.lua"
             end
 
             if currentQuest.preStartFunction ~= nil then
-                currentQuest.preStartFunction("yo")
+                currentQuest.preStartFunction()
+            end
+
+            if currentStep.preStartFunction ~= nil then
+                currentQuest.preStartFunction()
             end
 
             if currentStep.stepStartMapId ~= nil then
@@ -306,7 +313,7 @@ AI_FILE = "ModSpellPriority.lua"
                 questSelected = false
                 ResetQuestVar()
             else
-                MoveNext()
+                --MoveNext()
             end
         else 
             Print("Aucune étape séléctionner", "QuestManager", "error")
@@ -600,7 +607,7 @@ AI_FILE = "ModSpellPriority.lua"
                 msg.npcMapId = map:currentMapId()
                 return msg 
             end)
-            --developer:suspendScriptUntilMultiplePackets({ "NpcDialogCreationMessage", "NpcDialogQuestionMessage"}, 300, true)
+            --developer:suspendScriptUntilMultiplePackets({ "NpcDialogCreationMessage", "NpcDialogQuestionMessage"}, 0, true)
         end
     end
 
@@ -651,17 +658,33 @@ AI_FILE = "ModSpellPriority.lua"
         end
 
         if id ~= nil and isDialog then
-            --Print(id)
             packetDialog.visibleReplies = {}
             npc:reply(id)
         end
     end
 -- Gestion Movement
 
+    function GoAstrub()
+        if isStringEqual(map:currentArea(), "Incarnam") then
+            LoadRoadIfNotInMap(153880835)
+            local possibleIdReply = {
+                36982,
+                36980
+            }
+
+            if map:currentMapId() == 153880835 then
+                NpcDialogRequest(-20001)
+                ReplyUntilLeave(possibleIdReply)
+            else
+                MoveNext()
+            end
+        end
+    end
+
     function RoadZone(tblMapId)
 
         if map:currentMapId() == nextMap or nextMap == 0 then
-            --Print("Get next rand roadMapId")
+            Print("Get next rand roadMapId")
             while map:currentMapId() == nextMap or nextMap == 0 do
                 local maxDist = 0
                 local tblMapIdDist = {}
@@ -801,6 +824,7 @@ AI_FILE = "ModSpellPriority.lua"
                     map:moveToCell(v.cellId)
                     developer:unRegisterMessage("GameMapMovementMessage")
                     TryAttack(v.contextualId)
+                    break
                 end
             end
         end
@@ -1071,14 +1095,12 @@ AI_FILE = "ModSpellPriority.lua"
             end
         end
 
-        HARVESTABLE_ELEMENTS = {}
-        STATED_ELEMENTS = {}
-
         moveToChangeMap = true
         developer:registerMessage("GameMapMovementMessage", CB_MapMovementMessageGather)
-        --developer:unRegisterMessage("InteractiveElementUpdatedMessage")
-        --developer:unRegisterMessage("StatedElementUpdatedMessage")
-
+        developer:unRegisterMessage("InteractiveElementUpdatedMessage")
+        developer:unRegisterMessage("StatedElementUpdatedMessage")
+        HARVESTABLE_ELEMENTS = {}
+        STATED_ELEMENTS = {}
     end
 
     function CanGather(gatherId)
@@ -1802,6 +1824,7 @@ AI_FILE = "ModSpellPriority.lua"
                             DeleteActiveQuest(0000000001)
                         else
                             AddQuestActive(0000000001, objecttives)
+                            GoAstrub()
                         end
                     end   
                 }, 
@@ -3660,7 +3683,7 @@ AI_FILE = "ModSpellPriority.lua"
             requiredFinishedQuest = { 1649 },
             stepInfo = { 
                 ["START"] = {
-                    displayInfo = "Étape 0 / 5 -- Récupérer la quête",
+                    displayInfo = "Étape 0 / 3 -- Récupérer la quête",
                     stepStartMapId = 153878787,
                     ["EXECUTE"] = function(stepStartMapId)
                         local possibleIdReply = {
@@ -3680,37 +3703,19 @@ AI_FILE = "ModSpellPriority.lua"
                     end   
                 }, 
                 ["9871"] = {
-                    displayInfo = "Étape 1 / 5 -- Fabriquer x1 Planche Agglomérée",
+                    displayInfo = "Étape 1 / 3 -- Fabriquer x1 Planche Agglomérée",
                     stepStartMapId = 153355266,
                     ["EXECUTE"] = function(stepStartMapId)
-                        local pathFrene = {
-                            153879298,
-                            153879297,
-                            153879040,
-                            153879552,
-                            153879809,
-                            153879810,
-                            153880322,
-                            153880321
-                        }
-
-                        local pathMine = {
-                            153358338,
-                            153358336,
-                            153357314,
-                            153357312
-                        }
-
                         if inventory:itemCount(303) < 6 then -- Frêne
                             GATHER = {1}
 
                             Gather()
-                            RoadZone(pathFrene)
+                            RoadZone(Get_TblZoneSubArea("Incarnam", "Forêt"))
                         elseif inventory:itemCount(312) < 4 then -- Fer
                             GATHER = {17}
 
                             Gather()
-                            RoadZone(pathMine)
+                            RoadZone(Get_TblZoneSubArea("Incarnam", "Mine"))
                         else
                             LoadRoadIfNotInMap(stepStartMapId)
                             if map:currentMapId() == stepStartMapId then -- Execution étape
@@ -3727,37 +3732,19 @@ AI_FILE = "ModSpellPriority.lua"
                     end
                 },
                 ["9872"] = {
-                    displayInfo = "Étape 2 / 5 -- Fabriquer x1 Ferrite",
+                    displayInfo = "Étape 2 / 3 -- Fabriquer x1 Ferrite",
                     stepStartMapId = 153355264,
                     ["EXECUTE"] = function(stepStartMapId)
-                        local pathFrene = {
-                            153879298,
-                            153879297,
-                            153879040,
-                            153879552,
-                            153879809,
-                            153879810,
-                            153880322,
-                            153880321
-                        }
-
-                        local pathMine = {
-                            153358338,
-                            153358336,
-                            153357314,
-                            153357312
-                        }
-
                         if inventory:itemCount(303) < 10 then -- Frêne
                             GATHER = {1}
 
                             Gather()
-                            RoadZone(pathFrene)
+                            RoadZone(Get_TblZoneSubArea("Incarnam", "Forêt"))
                         elseif inventory:itemCount(312) < 6 then -- Fer
                             GATHER = {17}
 
                             Gather()
-                            RoadZone(pathMine)
+                            RoadZone(Get_TblZoneSubArea("Incarnam", "Mine"))
                         else
                             LoadRoadIfNotInMap(stepStartMapId)
                             if map:currentMapId() == stepStartMapId then -- Execution étape
@@ -3772,40 +3759,8 @@ AI_FILE = "ModSpellPriority.lua"
                         end                
                     end
                 },
-                ["9866"] = {
-                    displayInfo = "Étape 3 / 5 -- Fabriquer x1 Potion de mini soin",
-                    stepStartMapId = 153355270,
-                    ["EXECUTE"] = function(stepStartMapId)
-                        local tblMapId = {
-                            153879298,
-                            153879297,
-                            153879040,
-                            153879552,
-                            153879809,
-                            153879810,
-                            153880322,
-                            153880321
-                        }
-
-                        if inventory:itemCount(421) < 4 then
-                            GATHER = {254}
-                            Gather()
-                            RoadZone(tblMapId)
-                        else
-                            LoadRoadIfNotInMap(stepStartMapId)
-                            if map:currentMapId() == stepStartMapId then -- Execution étape
-                                map:useById(489066, -1)
-                                craft:putItem(421, 4)
-                                craft:ready()
-                                global:leaveDialog()
-                            else
-                                MoveNext()
-                            end    
-                        end
-                    end
-                },
                 ["FINISH"] = {
-                    displayInfo = "Étape 4 / 4 -- Retourner voir Berb N'hin",
+                    displayInfo = "Étape 3 / 3 -- Retourner voir Berb N'hin",
                     stepStartMapId = 153878787,
                     ["EXECUTE"] = function(stepStartMapId)
 
@@ -4577,7 +4532,7 @@ AI_FILE = "ModSpellPriority.lua"
                                 end)
                             end
 
-                            Fight()
+                            Fight(confMonster)
                         end              
                     end
                 },
@@ -4659,13 +4614,10 @@ AI_FILE = "ModSpellPriority.lua"
 
                             Fight(confMonster)
                         elseif map:currentMapId() == stepStartMapId then
-                            local possibleIdReply = {
-                                24993,
-                                24992,
-                                25000
-                            }
                             NpcDialogRequest(-20000)
-                            ReplyUntilLeave(possibleIdReply)
+                            NpcReply(24993)
+                            NpcReply(24992)
+                            NpcReply(25000)
                         end                     
                     end
                 }
@@ -4698,7 +4650,6 @@ AI_FILE = "ModSpellPriority.lua"
                     displayInfo = "Étape 1 / 1 -- Ramener à Marylock : x3 Poudre d'Aminite",
                     stepStartMapId = 153880325,
                     ["EXECUTE"] = function(stepStartMapId)
-                        LoadRoadIfNotInMap(stepStartMapId)
                         if inventory:itemCount(16999) < 3 then -- Relique d'incarnam
                             local tblMapId = Get_TblZoneSubArea("Incarnam", "Mine")
                             local confMonster = {
@@ -4712,6 +4663,8 @@ AI_FILE = "ModSpellPriority.lua"
                             end                        
                             RoadZone(tblMapId)                    
                         else
+                            LoadRoadIfNotInMap(stepStartMapId)
+
                             if map:currentMapId() == stepStartMapId then -- Execution étape
                                 NpcDialogRequest(-20000)
                                 NpcReply(25489)                
@@ -4798,7 +4751,8 @@ AI_FILE = "ModSpellPriority.lua"
                 152830976,
                 152832000,
                 152833024,
-                152834048
+                152834048,
+                152835072
             }
         },
         ["Astrub"] = {
