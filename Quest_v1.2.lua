@@ -1,8 +1,4 @@
 AI_FILE = "ModSpellPriority.lua"
-local currentDirectory = "E:\\Dofus botting\\Scripts\\Trajets\\AnkaBot\\Ankabot-MultiQuest\\"
--- Module (dofile)
-    local json = dofile("E:\\Dofus botting\\Scripts\\Module\\JSON.lua")
-    --local QUEST, ZONE_AREA_MAPID = dofile(currentDirectory.."QuestInfo.lua")
 
 -- Quest var
 
@@ -1029,7 +1025,7 @@ local currentDirectory = "E:\\Dofus botting\\Scripts\\Trajets\\AnkaBot\\Ankabot-
     -- Appel API
 
     function Get_NameMonster(id)
-        return assert(json:decode(developer:getRequest("https://fr.dofus.dofapi.fr/monsters/"..id)).name) or id
+        return id
     end
 
 --
