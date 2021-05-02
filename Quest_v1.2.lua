@@ -26,7 +26,7 @@ AI_FILE = "ModSpellPriority.lua"
         ["Amulette"] = { gid = 8216, lvl = 7, pos = 0 },
         ["Anneau n°1"] = { gid = 2475, lvl = 8, pos = 2 },
         ["Anneau n°2"] = { gid = 8222, lvl = 12, pos = 4 },
-        ["Ceinture"] = { gid = 8246, lvl = 9, pos = 3 },
+        ["Ceinture"] = { gid = 8240, lvl = 9, pos = 3 },
         ["Bottes"] = { gid = 8228, lvl = 11, pos = 5 }
     }
 
@@ -51,6 +51,7 @@ AI_FILE = "ModSpellPriority.lua"
 
     local moveToChangeMap = false
 
+    local countTryChangeMap = 0
     local nextCellDir = -1
     local userActorId = 0
     local lastPacketElementId = 0   
@@ -232,19 +233,20 @@ AI_FILE = "ModSpellPriority.lua"
     function QuestManager()
         developer:suspendScriptUntilMultiplePackets({ "QuestStepInfoMessage", "QuestObjectiveValidatedMessage", "QuestObjectiveValidatedMessage", "QuestValidatedMessage"}, 0, false)
 
+        if objectiveValidated then
+            ResetQuestVar()
+            return move()
+        end
+
         if not questInit then
             LoadHistoricalQuestList()
             questInit = true
         end
 
-        if objectiveValidated then
-            ResetQuestVar()
-        end
-
         PacketSubManager("quest", true)
 
         if not questSelected then -- Séléction de la quête
-            --Print("Séléction quête")
+            Print("Séléction quête")
             currentQuest = SelectQuest()
             if currentQuest == nil then
                 Print("Aucune quête séléctionner !", "QuestManager", "error")
@@ -254,13 +256,13 @@ AI_FILE = "ModSpellPriority.lua"
         end
 
         if questSelected and not stepSelected and currentQuest.notStepInfo ~= true and CheckIfQuestActive(currentQuest.questId) then
-            --Print("Envoie packetStepInfo")
+            Print("Envoie packetStepInfo")
             PacketSender("QuestStepInfoRequestMessage", function(msg) msg.questId = currentQuest.questId return msg end)
             developer:suspendScriptUntil("QuestStepInfoMessage", 1000, true)
         end
 
         if not stepSelected then -- Séléction de l'étape de quête
-            --Print("Sélection du step")
+            Print("Sélection du step")
             PacketSubManager("fight", false)
             PacketSubManager("gather", false)
             currentStep = SelectStep(GetCurrentStep())
@@ -268,25 +270,29 @@ AI_FILE = "ModSpellPriority.lua"
         end
 
         if currentStep.EXECUTE ~= nil then -- Éxécution de l'étape
-            --Print("Éxécution de l'étape")
+            Print("Print step")
 
             if not stepInfoDisplayed then
                 Print(currentStep.displayInfo, "étape")
                 stepInfoDisplayed = true
             end
+            Print("Check finish")
 
             if CheckIfQuestFinish(currentQuest.questId) then
                 EndQuest()
                 return move()
             end
+            Print("preStart")
 
             if currentQuest.preStartFunction ~= nil then
                 currentQuest.preStartFunction()
             end
 
             if currentStep.preStartFunction ~= nil then
-                currentQuest.preStartFunction()
+                currentStep.preStartFunction()
             end
+
+            Print("Execution du step")
 
             if currentStep.stepStartMapId ~= nil then
                 currentStep.EXECUTE(currentStep.stepStartMapId)
@@ -341,7 +347,7 @@ AI_FILE = "ModSpellPriority.lua"
     end
 
     function CB_QuestStepInfo(packet)
-        --Print("Réception du packet QuestStepInfoMessage", "packet")
+        Print("Réception du packet QuestStepInfoMessage", "packet")
 
         if packet.infos.questId ~= nil then
             for _, v in pairs(QuestList.activeQuests) do
@@ -682,10 +688,10 @@ AI_FILE = "ModSpellPriority.lua"
     end
 
     function RoadZone(tblMapId)
-
-        if map:currentMapId() == nextMap or nextMap == 0 then
-            Print("Get next rand roadMapId")
-            while map:currentMapId() == nextMap or nextMap == 0 do
+        if tblMapId ~= nil and #tblMapId > 0 then
+            global:delay(0.1)
+            if map:currentMapId() == nextMap or nextMap == 0 then
+                Print("Get next rand roadMapId")
                 local maxDist = 0
                 local tblMapIdDist = {}
 
@@ -703,22 +709,25 @@ AI_FILE = "ModSpellPriority.lua"
                 ShuffleList(tblMapIdDist)
 
                 for _, v in pairs(tblMapIdDist) do
-                    if v.dist >= math.ceil(maxDist / 2) then
+                    if v.dist >= math.ceil(maxDist / 1.5) then
                         --Print(v.dist)
                         nextMap = v.mapId
                         break
                     end
                 end
+
+                Print("Next roadMapId = "..nextMap)
+                if not map:loadMove(nextMap) then
+                    Print("Impossible de charger un chemin jusqu'a la mapId : ("..nextMap..") changement de map avant re tentative", "RoadZone", "warn")
+                    local dir, mapId = Get_RandomNeighbourMapId()
+                    map:changeMap(dir)
+                end
             end
-            --Print("Next roadMapId = "..nextMap)
-            if not map:loadMove(nextMap) then
-                Print("Impossible de charger le trajet jusqu'a la mapId : ("..nextMap..") changement de map avant re tentative", "RoadZone", "error")
-                local dir, mapId = Get_RandomNeighbourMapId()
-                map:changeMap(dir)
-            end
+            MoveNext()
+            nextMap = 0
+        else
+            Print("Table nil", "RoadZone", "error")
         end
-        MoveNext()
-        nextMap = 0
     end
 
     function Get_RandomNeighbourMapId()
@@ -739,7 +748,7 @@ AI_FILE = "ModSpellPriority.lua"
         if map:currentMapId() ~= compareMap and not roadLoaded then
             CheckImpossibleLoadMapid()
             if not map:loadRoadToMapId(compareMap) then
-                Print("Impossible de charger un chemin jusqu'a "..currentStep.displayInfo, currentQuest.name, "error")
+                Print("Impossible de charger un chemin jusqu'a "..currentStep.displayInfo, currentQuest.name, "LoadRoadIfNotInMap", "warn")
             else
                 roadLoaded = true
             end
@@ -786,13 +795,20 @@ AI_FILE = "ModSpellPriority.lua"
             lastMapId = map:currentMapId()
         end
         map:moveRoadNext()
+        -- ChangeMap echouée
+        Print("Apres road next")
         roadLoaded = false
-        local dir, mapId = Get_RandomNeighbourMapId()
-        if dir ~= nil then
-            map:changeMap(dir)
-            map:moveToward(mapId)
+        countTryChangeMap = countTryChangeMap + 1
+        if countTryChangeMap > 2 then
+            Print("Chemin charger incorect changement de map random jusqu'a rechargement d'un chemin", "MoveNext", "warn")
+            countTryChangeMap = 0
+            local dir, mapId = Get_RandomNeighbourMapId()
+            if dir ~= nil then
+                --map:changeMap(dir)
+                map:moveToward(mapId)
+            end
         end
-   end
+    end
 --
 -- Partie fight
 
@@ -816,7 +832,7 @@ AI_FILE = "ModSpellPriority.lua"
             end
             Print("Fin de régéneration des PV reprise des combats", "fight")
         end
-
+        Print('debut loop fight')
         for _, v in pairs(MAP_DATA_MONSTERS) do
             if MeetConditionsToAttack(v.idMonster) then
                 if map:currentCell() ~= v.cellId then
@@ -828,20 +844,8 @@ AI_FILE = "ModSpellPriority.lua"
                 end
             end
         end
-        local tmp = false
-
-        if #MAP_DATA_MONSTERS == 0 then
-            tmp = true
-        end
 
         MAP_DATA_MONSTERS = {}
-
-        if false then
-            PacketSender("MapInformationsRequestMessage", function(msg)
-                msg.mapId = map:currentMapId()
-                return msg
-            end)
-        end
 
         developer:unRegisterMessage("GameMapMovementMessage")
         developer:unRegisterMessage("GameContextRemoveElementMessage")
@@ -948,11 +952,6 @@ AI_FILE = "ModSpellPriority.lua"
                 break
             end
         end
-    end
-
-    function CB_GameFightStartingMessage()
-        --Print("reset")
-        --MAP_DATA_MONSTERS = {}
     end
 
 -- Tri FightPacket
@@ -1071,21 +1070,26 @@ AI_FILE = "ModSpellPriority.lua"
         PacketSubManager("gather", true)
         developer:suspendScriptUntil("MapComplementaryInformationsDataMessage", 10, false)
         moveToChangeMap = false
-
+        Print('gather sortMap')
         SortMapComplementary()
 
         if #HARVESTABLE_ELEMENTS > 0 then
+            Print('gather filter')
             HARVESTABLE_ELEMENTS = TableFilter(HARVESTABLE_ELEMENTS, function(v)
                 return CanGather(v.elementTypeId)
             end)
 
+            Print('gather countDist')
+
             for _, v in pairs(HARVESTABLE_ELEMENTS) do
                 v.distance = ManhattanDistanceCellId(map:currentCell(), v.cellId)
             end
+            Print('gather sortDist')
 
             table.sort(HARVESTABLE_ELEMENTS, function(a, b)
                 return a.distance < b.distance
             end)
+            Print('gather gathering loop')
 
             for _, v in pairs(HARVESTABLE_ELEMENTS) do
                 developer:suspendScriptUntilMultiplePackets({ "StatedElementUpdatedMessage", "InteractiveElementUpdatedMessage"}, 1, false)
@@ -1093,6 +1097,7 @@ AI_FILE = "ModSpellPriority.lua"
                     map:door(v.cellId)
                 end
             end
+            Print('gather end loop')
         end
 
         moveToChangeMap = true
@@ -1502,8 +1507,8 @@ AI_FILE = "ModSpellPriority.lua"
 
         if msgType == nil then
             global:printSuccess(prefabStr)
-        elseif string.lower(msgType) == "normal" then
-            global:printMessage(prefabStr)
+        elseif string.lower(msgType) == "warn" then
+            global:printMessage("[WARNING]["..header.."] "..msg)
         elseif string.lower(msgType) == "error" then
             global:printError("[ERROR]["..header.."] "..msg)
         end
@@ -2608,51 +2613,6 @@ AI_FILE = "ModSpellPriority.lua"
                 }
             }
         },
-        ["Dans la gueule du Milimilou"] = {
-            questId = 1635,
-            minLevel = 15,
-            cantStart = true,
-            requiredFinishedQuest = { 1634 }, 
-            stepInfo = { 
-                ["START"] = {
-                    displayInfo = "Étape 0 / 7 -- Récupérer la quête",
-                    ["EXECUTE"] = function()
-                        local possibleIdReply = {
-                            25109,
-                            25110
-                        }
-                        local stepStartMapId = 153356296
-        
-                        LoadRoadIfNotInMap(stepStartMapId)
-        
-                        if map:currentMapId() == stepStartMapId then -- Execution étape
-                            NpcDialogRequest(-20000)
-                            ReplyUntilLeave(possibleIdReply)
-                        else
-                            MoveNext()
-                        end
-                    end   
-                }, 
-    
-                ["9783"] = {
-                    displayInfo = "Étape 1 / 7 -- ",
-                    ["EXECUTE"] = function()
-                        local stepStartMapId = 153356296
-
-                        LoadRoadIfNotInMap(stepStartMapId)
-
-                        if map:currentMapId() == stepStartMapId then -- Execution étape
-                            NpcDialogRequest(-20000)
-                            NpcReply(-1, "slow")
-                            NpcReply(-1, "slow")
-                            NpcReply(-1, "slow")
-                        else
-                            MoveNext()
-                        end
-                    end
-                }
-            }
-        }, 
         ["Mise à l'épreuve"] = {
             questId = 1642,
             requiredFinishedQuest = { 1632 },
@@ -4286,7 +4246,7 @@ AI_FILE = "ModSpellPriority.lua"
                             end                        
                             RoadZone(tblMapId)
                         elseif inventory:itemCount(385) < 4 then -- Bave de bouftout
-                            local tblMapId = Get_TblZoneSubArea("Incarnam", "Paturâges")
+                            local tblMapId = Get_TblZoneSubArea("Incarnam", "Pâturages")
                             local confMonster = {
                                 minMonster = 1,
                                 maxMonster = 4,
@@ -4475,7 +4435,48 @@ AI_FILE = "ModSpellPriority.lua"
         ["Cryptologie"] = {
             questId = 1638,
             minLevel = 12,
-            stepInfo = { 
+            preStartFunction = function()
+                if inventory:itemCount(8545) < 1 then -- Clef de la crypte de kardorim
+
+                    if inventory:itemCount(16524) < 3 then -- Relique d'incarnam
+                        local tblMapId = Get_TblZoneSubArea("Incarnam", "Cimetière")
+                        local confMonster = {
+                            minMonster = 1,
+                            maxMonster = 4,
+                            conf = {}                        
+                        } 
+
+                        if InMapChecker(tblMapId) then
+                            Fight(confMonster)
+                        end                        
+                        RoadZone(tblMapId)                    
+                    elseif inventory:itemCount(1984) < 5 then -- Cendre éternelles
+                        local tblMapId = Get_TblZoneSubArea("Incarnam", "Route des âmes")
+                        local confMonster = {
+                            minMonster = 1,
+                            maxMonster = 4,
+                            conf = {}                        
+                        } 
+
+                        if InMapChecker(tblMapId) then
+                            Fight(confMonster)
+                        end                        
+                        RoadZone(tblMapId)                    
+                    else
+                        LoadRoadIfNotInMap(153354248)
+                        if map:currentMapId() == 153354248 then -- Execution étape
+                            map:useById(490183, -1)
+                            craft:putItem(16524, 3)
+                            craft:putItem(1984, 5)
+                            craft:ready()
+                            global:leaveDialog()
+                        else
+                            MoveNext()
+                        end    
+                    end
+                end
+            end,
+            stepInfo = {
                 ["START"] = {
                     displayInfo = "Étape 0 / 3 -- Récupérer la quête",
                     stepStartMapId = 153881600,
@@ -4499,25 +4500,67 @@ AI_FILE = "ModSpellPriority.lua"
                 ["9811"] = {
                     displayInfo = "Étape 1 / 3 -- Découvrir la carte : Salle du tombeau de kardorim",
                     stepStartMapId = 153881600,
-                    ["EXECUTE"] = function(stepStartMapId)       
+                    ["EXECUTE"] = function(stepStartMapId)      
                         if not InMapChecker(Get_TblZoneSubArea("Incarnam", "Crypte de Kardorim")) then
-                            local possibleIdReply = {
-                                24967,
-                                24966,
-                                24973,
-                                24970,
-                                24968,
-                                24971
-                            }
+                            if inventory:itemCount(8545) < 1 then -- Clef de la crypte de kardorim
 
-                            LoadRoadIfNotInMap(stepStartMapId)
-
-                            if map:currentMapId() == stepStartMapId then -- Execution étape
-                                NpcDialogRequest(-20000)
-                                ReplyUntilLeave(possibleIdReply)
+                                if inventory:itemCount(16524) < 3 then -- Relique d'incarnam
+                                    local tblMapId = Get_TblZoneSubArea("Incarnam", "Cimetière")
+                                    local confMonster = {
+                                        minMonster = 1,
+                                        maxMonster = 4,
+                                        conf = {}                        
+                                    } 
+        
+                                    if InMapChecker(tblMapId) then
+                                        Fight(confMonster)
+                                    end                        
+                                    RoadZone(tblMapId)                    
+                                elseif inventory:itemCount(1984) < 5 then -- Cendre éternelles
+                                    local tblMapId = Get_TblZoneSubArea("Incarnam", "Route des âmes")
+                                    local confMonster = {
+                                        minMonster = 1,
+                                        maxMonster = 4,
+                                        conf = {}                        
+                                    } 
+        
+                                    if InMapChecker(tblMapId) then
+                                        Fight(confMonster)
+                                    end                        
+                                    RoadZone(tblMapId)                    
+                                else
+                                    LoadRoadIfNotInMap(153354248)
+                                    if map:currentMapId() == 153354248 then -- Execution étape
+                                        map:useById(490183, -1)
+                                        craft:putItem(16524, 3)
+                                        craft:putItem(1984, 5)
+                                        craft:ready()
+                                        global:leaveDialog()
+                                    else
+                                        MoveNext()
+                                    end    
+                                end
+        
                             else
-                                MoveNext()
-                            end  
+                                local possibleIdReply = {
+                                    24967,
+                                    24966,
+                                    24973,
+                                    24970,
+                                    24968,
+                                    24971
+                                }
+
+                                LoadRoadIfNotInMap(stepStartMapId)
+
+                                if map:currentMapId() == stepStartMapId then -- Execution étape
+                                    PacketSubManager("fight", true)
+                                    NpcDialogRequest(-20000)
+                                    ReplyUntilLeave(possibleIdReply)
+                                else
+                                    MoveNext()
+                                end 
+                            end
                         else
                             local confMonster = {
                                 minMonster = 1,
@@ -4541,23 +4584,65 @@ AI_FILE = "ModSpellPriority.lua"
                     stepStartMapId = 153881600,
                     ["EXECUTE"] = function(stepStartMapId)
                         if not InMapChecker(Get_TblZoneSubArea("Incarnam", "Crypte de Kardorim")) then
-                            local possibleIdReply = {
-                                24967,
-                                24966,
-                                24973,
-                                24970,
-                                24968,
-                                24971
-                            }
+                            if inventory:itemCount(8545) < 1 then -- Clef de la crypte de kardorim
 
-                            LoadRoadIfNotInMap(stepStartMapId)
-
-                            if map:currentMapId() == stepStartMapId then -- Execution étape
-                                NpcDialogRequest(-20000)
-                                ReplyUntilLeave(possibleIdReply)
+                                if inventory:itemCount(16524) < 3 then -- Relique d'incarnam
+                                    local tblMapId = Get_TblZoneSubArea("Incarnam", "Cimetière")
+                                    local confMonster = {
+                                        minMonster = 1,
+                                        maxMonster = 4,
+                                        conf = {}                        
+                                    } 
+        
+                                    if InMapChecker(tblMapId) then
+                                        Fight(confMonster)
+                                    end                        
+                                    RoadZone(tblMapId)                    
+                                elseif inventory:itemCount(1984) < 5 then -- Cendre éternelles
+                                    local tblMapId = Get_TblZoneSubArea("Incarnam", "Route des âmes")
+                                    local confMonster = {
+                                        minMonster = 1,
+                                        maxMonster = 4,
+                                        conf = {}                        
+                                    } 
+        
+                                    if InMapChecker(tblMapId) then
+                                        Fight(confMonster)
+                                    end                        
+                                    RoadZone(tblMapId)                    
+                                else
+                                    LoadRoadIfNotInMap(153354248)
+                                    if map:currentMapId() == 153354248 then -- Execution étape
+                                        map:useById(490183, -1)
+                                        craft:putItem(16524, 3)
+                                        craft:putItem(1984, 5)
+                                        craft:ready()
+                                        global:leaveDialog()
+                                    else
+                                        MoveNext()
+                                    end    
+                                end
+        
                             else
-                                MoveNext()
-                            end  
+                                local possibleIdReply = {
+                                    24967,
+                                    24966,
+                                    24973,
+                                    24970,
+                                    24968,
+                                    24971
+                                }
+
+                                LoadRoadIfNotInMap(stepStartMapId)
+
+                                if map:currentMapId() == stepStartMapId then -- Execution étape
+                                    PacketSubManager("fight", true)
+                                    NpcDialogRequest(-20000)
+                                    ReplyUntilLeave(possibleIdReply)
+                                else
+                                    MoveNext()
+                                end 
+                            end
                         else
                             local confMonster = {
                                 minMonster = 1,
@@ -4581,7 +4666,65 @@ AI_FILE = "ModSpellPriority.lua"
                     stepStartMapId = 152835072,
                     ["EXECUTE"] = function(stepStartMapId)
                         if not InMapChecker(Get_TblZoneSubArea("Incarnam", "Crypte de Kardorim")) then
-                            local possibleIdReply = {
+                            if inventory:itemCount(8545) < 1 then -- Clef de la crypte de kardorim
+
+                                if inventory:itemCount(16524) < 3 then -- Relique d'incarnam
+                                    local tblMapId = Get_TblZoneSubArea("Incarnam", "Cimetière")
+                                    local confMonster = {
+                                        minMonster = 1,
+                                        maxMonster = 4,
+                                        conf = {}                        
+                                    } 
+        
+                                    if InMapChecker(tblMapId) then
+                                        Fight(confMonster)
+                                    end                        
+                                    RoadZone(tblMapId)                    
+                                elseif inventory:itemCount(1984) < 5 then -- Cendre éternelles
+                                    local tblMapId = Get_TblZoneSubArea("Incarnam", "Route des âmes")
+                                    local confMonster = {
+                                        minMonster = 1,
+                                        maxMonster = 4,
+                                        conf = {}                        
+                                    } 
+        
+                                    if InMapChecker(tblMapId) then
+                                        Fight(confMonster)
+                                    end                        
+                                    RoadZone(tblMapId)                    
+                                else
+                                    LoadRoadIfNotInMap(153354248)
+                                    if map:currentMapId() == 153354248 then -- Execution étape
+                                        map:useById(490183, -1)
+                                        craft:putItem(16524, 3)
+                                        craft:putItem(1984, 5)
+                                        craft:ready()
+                                        global:leaveDialog()
+                                    else
+                                        MoveNext()
+                                    end    
+                                end
+        
+                            else
+                                local possibleIdReply = {
+                                    24967,
+                                    24966,
+                                    24973,
+                                    24970,
+                                    24968,
+                                    24971
+                                }
+
+                                LoadRoadIfNotInMap(stepStartMapId)
+
+                                if map:currentMapId() == stepStartMapId then -- Execution étape
+                                    PacketSubManager("fight", true)
+                                    NpcDialogRequest(-20000)
+                                    ReplyUntilLeave(possibleIdReply)
+                                else
+                                    MoveNext()
+                                end 
+                            end                            local possibleIdReply = {
                                 24967,
                                 24966,
                                 24973,
@@ -4676,6 +4819,191 @@ AI_FILE = "ModSpellPriority.lua"
                 }
             }
         },
+        ["Dans la gueule du Milimilou"] = {
+            questId = 1635,
+            minLevel = 12,
+            requiredFinishedQuest = { 1634 },
+            stepInfo = {
+                ["START"] = {
+                    displayInfo = "Étape 0 / 5 -- Récupérer la quête",
+                    stepStartMapId = 153356296,
+                    ["EXECUTE"] = function(stepStartMapId)
+                        local possibleIdReply = {
+                            25118,
+                            25117,
+                            25116,
+                            25115,
+                            25114                   
+                        } 
+
+                        LoadRoadIfNotInMap(stepStartMapId)
+        
+                        if map:currentMapId() == stepStartMapId then -- Execution étape
+                            NpcDialogRequest(-20000)
+                            ReplyUntilLeave(possibleIdReply)
+                        else
+                            MoveNext()
+                        end
+                    end   
+                }, 
+                ["9783"] = {
+                    displayInfo = "Étape 1 / 5 -- Allez voir Klasmor le fossoyeur",
+                    stepStartMapId = 153881600,
+                    ["EXECUTE"] = function(stepStartMapId)
+                        local possibleIdReply = {
+                            24989,
+                            24988,
+                            24987,
+
+                        }
+                        LoadRoadIfNotInMap(stepStartMapId)
+
+                        if map:currentMapId() == stepStartMapId then -- Execution étape
+                            NpcDialogRequest(-20000)
+                            ReplyUntilLeave(possibleIdReply)
+                        else
+                            MoveNext()
+                        end
+                    end
+                },
+                ["9784"] = {
+                    displayInfo = "Étape 2 / 5 -- Pénétrer dans l'antre du Milimilou",
+                    stepStartMapId = 152836096,
+                    ["EXECUTE"] = function(stepStartMapId)
+                        LoadRoadIfNotInMap(stepStartMapId)
+                        MoveNext()
+                    end
+                },
+                ["9785"] = {
+                    displayInfo = "Étape 3 / 5 -- Vaincre le Milimilou",
+                    stepStartMapId = 152836096,
+                    ["EXECUTE"] = function(stepStartMapId)
+                        LoadRoadIfNotInMap(stepStartMapId)
+
+                        if map:currentMapId() == stepStartMapId then
+                            NpcDialogRequest(-20000)
+                            NpcReply(25004)
+                        else
+                            MoveNext()
+                        end
+                    end
+                },
+                ["9786"] = {
+                    displayInfo = "Étape 4 / 5 -- Allez voir Hargnok",
+                    stepStartMapId = 152836096,
+                    ["EXECUTE"] = function(stepStartMapId)
+                        local possibleIdReply = {
+                            25013,
+                            25012,
+                            25011
+                        }
+
+                        LoadRoadIfNotInMap(stepStartMapId)
+
+                        if map:currentMapId() == stepStartMapId then
+                            NpcDialogRequest(-20001)
+                            ReplyUntilLeave(possibleIdReply)
+                        else
+                            MoveNext()
+                        end
+                    end
+                },
+                ["FINISH"] = {
+                    displayInfo = "Étape 5 / 5 -- Retourner voir Fécaline la Sage",
+                    stepStartMapId = 153356296,
+                    ["EXECUTE"] = function(stepStartMapId)
+                        LoadRoadIfNotInMap(stepStartMapId)
+
+                        if map:currentMapId() == stepStartMapId then
+                            NpcDialogRequest(-20000)
+                            NpcReply(25124)
+                        else
+                            MoveNext()
+                        end
+                    end
+                },
+            }
+        }, 
+        ["Destination Astrub"] = {
+            questId = 2004,
+            requiredFinishedQuest = { 1635 },
+            stepInfo = {
+                ["START"] = {
+                    displayInfo = "Étape 0 / 5 -- Récupérer la quête",
+                    stepStartMapId = 153356296,
+                    ["EXECUTE"] = function(stepStartMapId)
+                        local possibleIdReply = {
+                            25124,
+                            25123,
+                            25119,
+                            25115,
+                            25114                   
+                        } 
+
+                        LoadRoadIfNotInMap(stepStartMapId)
+        
+                        if map:currentMapId() == stepStartMapId then -- Execution étape
+                            NpcDialogRequest(-20000)
+                            ReplyUntilLeave(possibleIdReply)
+                        else
+                            MoveNext()
+                        end
+                    end   
+                }, 
+                ["13767"] = {
+                    displayInfo = "Étape 1 / 3 -- Allez voir Maître Anemo",
+                    stepStartMapId = 153880835,
+                    ["EXECUTE"] = function(stepStartMapId)
+                        local possibleIdReply = {
+                            36613,
+                            36621
+                        }
+                        LoadRoadIfNotInMap(stepStartMapId)
+
+                        if map:currentMapId() == stepStartMapId then -- Execution étape
+                            NpcDialogRequest(-20002)
+                            ReplyUntilLeave(possibleIdReply)
+                        else
+                            MoveNext()
+                        end
+                    end
+                },
+                ["13931"] = {
+                    displayInfo = "Étape 2 / 3 -- Utiliser le portail pour se à Astrub sur le Monde des Douze",
+                    stepStartMapId = 153880835,
+                    ["EXECUTE"] = function(stepStartMapId)
+                        LoadRoadIfNotInMap(stepStartMapId)
+                        local possibleIdReply = {
+                            36982,
+                            36980
+                        }
+
+                        if map:currentMapId() == stepStartMapId then
+                            NpcDialogRequest(-20001)
+                            ReplyUntilLeave(possibleIdReply)
+                        else
+                            MoveNext()
+                        end          
+                    end
+                },
+                ["FINISH"] = {
+                    displayInfo = "Étape 3 / 3 -- Allez voir l'Envoyée des Douze",
+                    stepStartMapId = 192416776,
+                    ["EXECUTE"] = function(stepStartMapId)
+
+
+                        LoadRoadIfNotInMap(stepStartMapId)
+
+                        if map:currentMapId() == stepStartMapId then
+                            NpcDialogRequest(-20000)
+                            NpcReply(36744)
+                        else
+                            MoveNext()
+                        end
+                    end
+                },
+            }
+        }
     }
 
     ZONE_AREA_MAPID = {
