@@ -44,25 +44,30 @@ AI_FILE = "ModSpellPriority.lua"
         } 
     }
 
+    local MAP_ACTORS = {}
     local MAP_DATA_MONSTERS = {}
+    local SORTED_MONSTERS = {}
+    local MONSTERS_TO_ATTACK = {}
+
 -- Gather var
-
-    GATHER = {}
-
-    local moveToChangeMap = false
-
+    local tMin, tMax = 0, 0
     local countTryChangeMap = 0
     local nextCellDir = -1
-    local userActorId = 0
-    local lastPacketElementId = 0   
-
-    local thread = {}
-    local CellArray = {}
-
+    
+    local GATHER = {}
     local MAP_COMPLEMENTARY = {}
+    MAP_COMPLEMENTARY.integereractiveElements = {}
+    MAP_COMPLEMENTARY.statedElements = {}
     local STATED_ELEMENTS = {}
     local HARVESTABLE_ELEMENTS = {}
---
+    
+    local InteractiveThread = {}
+    local CellArray = {}
+    
+    local reveiveInteractPacket, dispatching = false, false
+    local gathering, sortByDist = false, false
+    
+    local condition = (not dispatching and not reveiveInteractPacket)--
 
 -- Main
 
@@ -832,24 +837,41 @@ AI_FILE = "ModSpellPriority.lua"
             end
             Print("Fin de régéneration des PV reprise des combats", "fight")
         end
-        Print('debut loop fight')
-        for _, v in pairs(MAP_DATA_MONSTERS) do
-            if MeetConditionsToAttack(v.idMonster) then
-                if map:currentCell() ~= v.cellId then
-                    Print("Déplacement vers la cellule du lancement de combat", "fight")
-                    map:moveToCell(v.cellId)
-                    developer:unRegisterMessage("GameMapMovementMessage")
-                    TryAttack(v.contextualId)
+
+        Print("Check mapComp not nil")
+        if MAP_ACTORS ~= nil and #MAP_ACTORS > 0 then
+            
+            Print("sort data")
+
+            MAP_DATA_MONSTERS = Get_SortedGroupMonster(MAP_ACTORS)
+
+            MAP_ACTORS = {}
+
+            Print("Check grp to attack")
+
+            for _, v in pairs(MAP_DATA_MONSTERS) do
+                if MeetConditionsToAttack(v.idMonster) then
+                    table.insert(SORTED_MONSTERS, v)
+                end
+            end
+            Print("loop fight")
+
+            while #SORTED_MONSTERS > 0 do
+                -- Séléction et suppresion du grp
+                for i = #SORTED_MONSTERS, 1, -1 do
+                    MONSTERS_TO_ATTACK = SORTED_MONSTERS[i]
+                    table.remove(SORTED_MONSTERS, i)
                     break
+                end
+
+                if map:currentCell() ~= MONSTERS_TO_ATTACK.cellId then
+                    Print("Déplacement vers la cellule du lancement de combat", "fight")
+                    map:moveToCell(MONSTERS_TO_ATTACK.cellId)
+                    developer:suspendScriptUntil("GameMapMovementMessage", 0, false)
+                    TryAttack(MONSTERS_TO_ATTACK.contextualId)
                 end
             end
         end
-
-        MAP_DATA_MONSTERS = {}
-
-        developer:unRegisterMessage("GameMapMovementMessage")
-        developer:unRegisterMessage("GameContextRemoveElementMessage")
-        developer:unRegisterMessage("GameRolePlayShowActorMessage")
     end
 
     function TryAttack(ctxId)
@@ -900,83 +922,98 @@ AI_FILE = "ModSpellPriority.lua"
 -- CallBack FightPacket
 
     function CB_MapComplementaryInfoDataMessageFight(packet)
-        --Print("MapComplementary")
-        if #packet.actors > 0 then
-            MAP_DATA_MONSTERS = Get_SortedGroupMonster(packet.actors)
-        end
+        Print("MapComplementary")
+        MAP_ACTORS = packet.actors
+        Print("Apres mapcomp")
     end
 
     function CB_ShowActorMessage(packet)
-        --Print("ShowActor")
+        Print("ShowActor")
         if developer:typeOf(packet.informations) == "GameRolePlayGroupMonsterInformations" then
             local updated = false
             local sortedGroup = Get_SortedGroupMonster({packet.informations})
 
-            --[[ for _, v in pairs(MAP_DATA_MONSTERS) do
+            for _, v in pairs(SORTED_MONSTERS) do
                 if v.contextualId == sortedGroup[1].contextualId then
                     updated = true
-                    --Print("Update groupMonster")
+                    Print("Update groupMonster")
                     v = sortedGroup[1]
                     break
                 end
-            end ]]
+            end
 
             if not updated then
-                --Print("Ajouter a mapData")
-                table.insert(MAP_DATA_MONSTERS, sortedGroup[1])
+                if MONSTERS_TO_ATTACK.contextualId ~= sortedGroup[1].contextualId and MeetConditionsToAttack(sortedGroup[1].idMonster) then
+                    Print("Ajouter a SORTED")
+                    table.insert(MAP_DATA_MONSTERS, sortedGroup[1])
+                end
             end
         end
     end
 
     function CB_MapMovementMessage(packet)
         if packet.actorId < 0 then
-            --Print("MapMovement")
-            --Print(packet.keyMovements[1])
-            --Print(packet.keyMovements[2])
-            for _, v in pairs(MAP_DATA_MONSTERS) do
-                if v.contextualId == packet.actorId then
-                    --Print("Monster updated")
-                    v.cellId = packet.keyMovements[2]
-                    break
+            Print("MapMovement")
+            if MONSTERS_TO_ATTACK.contextualId == packet.actorId then
+                Print("MapMov ReAdd Sorted")
+                local tmp = MONSTERS_TO_ATTACK
+                tmp.cellId = packet.keyMovements[2]
+                table.insert(SORTED_MONSTERS, tmp)
+            else
+                for _, v in pairs(SORTED_MONSTERS) do
+                    if v.contextualId == packet.actorId then
+                        Print("Monster updated")
+                        v.cellId = packet.keyMovements[2]
+                        break
+                    end
                 end
             end
         end
     end
 
     function CB_ContextRemoveElementMessage(packet)
-        --Print("ContextRemove")
-        for i = #MAP_DATA_MONSTERS, 1, -1 do
-            if MAP_DATA_MONSTERS[i].contextualId == packet.id then
-                --Print("Monster removed")
-                table.remove(MAP_DATA_MONSTERS, i)
+        Print("ContextRemove")
+        for i = #SORTED_MONSTERS, 1, -1 do
+            if SORTED_MONSTERS[i].contextualId == packet.id then
+                Print("Monster removed")
+                table.remove(SORTED_MONSTERS, i)
                 break
             end
         end
     end
 
+    function CB_FightStartingMessage()
+        SORTED_MONSTERS = {}
+    end
+
 -- Tri FightPacket
 
     function Get_SortedGroupMonster(pActors)
-        local staticInfo = Get_GroupMonsterStaticInfo(Get_GroupMonsterInfo(pActors))
-        local tbl = {}
+        if pActors ~= nil then
+            local staticInfo = Get_GroupMonsterStaticInfo(Get_GroupMonsterInfo(pActors))
+            local tbl = {}
 
-        for i, tblGroupMonster in pairs(staticInfo) do
-            local groupMonster = {}
-            groupMonster.idMonster = {}
-            groupMonster.cellId = tblGroupMonster.cellId
-            groupMonster.contextualId = tblGroupMonster.contextualId
+            for i, tblGroupMonster in pairs(staticInfo) do
+                local groupMonster = {}
+                groupMonster.idMonster = {}
+                groupMonster.cellId = tblGroupMonster.cellId
+                groupMonster.contextualId = tblGroupMonster.contextualId
 
-            for _, tblMonster in pairs(tblGroupMonster.Infos) do
-                table.insert(groupMonster.idMonster, tblMonster.mainCreatureLightInfos.genericId)
+                for _, tblMonster in pairs(tblGroupMonster.Infos) do
+                    table.insert(groupMonster.idMonster, tblMonster.mainCreatureLightInfos.genericId)
 
-                for _, sTblMonster in pairs(tblMonster.underlings) do
-                    table.insert(groupMonster.idMonster, sTblMonster.genericId)
+                    for _, sTblMonster in pairs(tblMonster.underlings) do
+                        table.insert(groupMonster.idMonster, sTblMonster.genericId)
+                    end
+
                 end
-
+                table.insert(tbl, groupMonster)
             end
-            table.insert(tbl, groupMonster)
+            return tbl
+        else
+            Print("No actors")
+            return {}
         end
-        return tbl
     end
 
     function Get_GroupMonsterInfo(pActors)
@@ -1057,55 +1094,73 @@ AI_FILE = "ModSpellPriority.lua"
 -- Logic GatherFunc
 
     function Gather()
-        PacketSubManager("fight", false)
+        developer:suspendScriptUntilMultiplePackets({ "StatedElementUpdatedMessage", "InteractiveElementUpdatedMessage"}, 1, false)
+        global:delay(0.1)
+
         if #CellArray == 0 then
             InitCellsArray()
         end
-
-        if userActorId == 0 then
-            local histoActor = developer:historicalMessage("CharacterSelectedSuccessMessage")
-            userActorId = histoActor[1].infos.id
-        end
-
+        PacketSubManager("fight", false)
         PacketSubManager("gather", true)
-        developer:suspendScriptUntil("MapComplementaryInformationsDataMessage", 10, false)
-        moveToChangeMap = false
-        Print('gather sortMap')
-        SortMapComplementary()
 
-        if #HARVESTABLE_ELEMENTS > 0 then
-            Print('gather filter')
-            HARVESTABLE_ELEMENTS = TableFilter(HARVESTABLE_ELEMENTS, function(v)
-                return CanGather(v.elementTypeId)
-            end)
-
-            Print('gather countDist')
-
-            for _, v in pairs(HARVESTABLE_ELEMENTS) do
-                v.distance = ManhattanDistanceCellId(map:currentCell(), v.cellId)
+        if condition then
+            developer:suspendScriptUntilMultiplePackets({ "StatedElementUpdatedMessage", "InteractiveElementUpdatedMessage"}, 1, false)
+            --Dump(MAP_COMPLEMENTARY)
+            if #InteractiveThread > 0 and condition then
+                Dispatcher()
             end
-            Print('gather sortDist')
 
-            table.sort(HARVESTABLE_ELEMENTS, function(a, b)
-                return a.distance < b.distance
-            end)
-            Print('gather gathering loop')
+            if condition then
+                --Print("Sort mapcomp")
+                SortMapComplementary()
+            end
 
-            for _, v in pairs(HARVESTABLE_ELEMENTS) do
+            developer:suspendScriptUntilMultiplePackets({ "StatedElementUpdatedMessage", "InteractiveElementUpdatedMessage"}, 1, false)
+
+            if #HARVESTABLE_ELEMENTS > 0 and condition then
+                --Print("sort by dist")
+
+                sortByDist = true
+
+                HARVESTABLE_ELEMENTS = TableFilter(HARVESTABLE_ELEMENTS, function(v)
+                    return CanGather(v.elementTypeId)
+                end)
+
+                for _, v in pairs(HARVESTABLE_ELEMENTS) do
+                    v.distance = ManhattanDistanceCellId(map:currentCell(), v.cellId)
+                end
+
+                table.sort(HARVESTABLE_ELEMENTS, function(a, b)
+                    return a.distance < b.distance
+                end)
+
+                sortByDist = false
+
+                gathering = true
+
+                for _, v in pairs(HARVESTABLE_ELEMENTS) do
+                    developer:suspendScriptUntilMultiplePackets({ "StatedElementUpdatedMessage", "InteractiveElementUpdatedMessage"}, 1, false)
+                    if not v.deleted then
+                        if tMax > 0 then
+                            global:delay(global:random(tMin, tMax))
+                        end
+                        map:door(v.cellId)
+                    end
+                end
+
+                gathering = false
+
                 developer:suspendScriptUntilMultiplePackets({ "StatedElementUpdatedMessage", "InteractiveElementUpdatedMessage"}, 1, false)
-                if not v.deleted then
-                    map:door(v.cellId)
+
+                if condition then
+                    MAP_COMPLEMENTARY = {}
+                    MAP_COMPLEMENTARY.integereractiveElements = {}
+                    MAP_COMPLEMENTARY.statedElements = {}
+                    HARVESTABLE_ELEMENTS = {}
+                    STATED_ELEMENTS = {}
                 end
             end
-            Print('gather end loop')
         end
-
-        moveToChangeMap = true
-        developer:registerMessage("GameMapMovementMessage", CB_MapMovementMessageGather)
-        developer:unRegisterMessage("InteractiveElementUpdatedMessage")
-        developer:unRegisterMessage("StatedElementUpdatedMessage")
-        HARVESTABLE_ELEMENTS = {}
-        STATED_ELEMENTS = {}
     end
 
     function CanGather(gatherId)
@@ -1120,22 +1175,40 @@ AI_FILE = "ModSpellPriority.lua"
         return false
     end
 
-    function Dispatcher()
-
-        Print("Start Dispatcher")
-        for i = #thread, 1, -1 do
-            thread[i]()
-            table.remove(thread, i)
-        end
-        lastPacketElementId = 0
-        Print("end dispatcher")
-        if IsCellIdValid(nextCellDir) then
-            local nextDir, cell = CellIdToDir(nextCellDir)
-            nextCellDir = -1
-            if nextDir ~= nil and cell ~= nil then
-                map:changeMap(nextDir.."("..cell..")")
+    function SortMapComplementary()
+        if MAP_COMPLEMENTARY.integereractiveElements ~= nil and MAP_COMPLEMENTARY.statedElements ~= nil then
+            for _, vIntegeractive in ipairs(MAP_COMPLEMENTARY.integereractiveElements) do
+                if vIntegeractive.onCurrentMap then
+                    for _, vStated in pairs(MAP_COMPLEMENTARY.statedElements) do
+                        if vIntegeractive.elementId == vStated.elementId then
+                            local elem = {}
+                            elem.deleted = false
+                            elem.cellId = vStated.elementCellId
+                            elem.elementTypeId = vIntegeractive.elementTypeId
+                            elem.elementId = vIntegeractive.elementId
+                            if type(vIntegeractive.enabledSkills) == "boolean" or #vIntegeractive.enabledSkills > 0 then
+                                elem.skillInstanceUid = vIntegeractive.enabledSkills[1].skillInstanceUid
+                                table.insert(HARVESTABLE_ELEMENTS, elem)
+                            end
+                        end
+                    end
+                end
             end
         end
+    end
+
+    function Dispatcher()
+        --Print("Start Dispatcher")
+        dispatching = true
+        dispatching = true
+        for _, v in pairs(InteractiveThread) do
+            v()
+        end
+        InteractiveThread = {}
+        lastPacketElementId = 0
+        SortMapComplementary()
+        dispatching = false
+        --Print("end dispatcher")
     end
 
 -- Cell to X Y
@@ -1214,48 +1287,57 @@ AI_FILE = "ModSpellPriority.lua"
 
     function CB_InteractiveElementUpdatedMessage(packet)
         --Print("Interac")
+        reveiveInteractPacket = true
         packet = packet.integereractiveElement
         if packet.onCurrentMap then
-            if #packet.enabledSkills > 100 then
+            --Print("Check pop depop")
+            if #packet.enabledSkills > 0 then
                 --Print("Repop")
                 for _, v in pairs(STATED_ELEMENTS) do
                     --Print(packet.elementId.."   "..v.elementId)
                     if v.elementId == packet.elementId then
-                        if CanGather(packet.elementTypeId) then
-                            --Print("Repoped elem")
-                            if moveToChangeMap then
-                                --[[ if lastPacketElementId ~= packet.elementId then
-                                    lastPacketElementId = packet.elementId
-                                    table.insert(thread, function()
-                                        local cellId = v.elementCellId
-                                        map:door(cellId)
-                                    end)
-                                end
-                                developer:suspendScriptUntil("InteractiveElementUpdatedMessage", 1, false)
-                                if #thread > 0 then
-                                    Dispatcher()
-                                end ]]
-                            else
-                                local elem = {}
-                                elem.deleted = false
-                                elem.cellId = v.elementCellId
-                                elem.elementId = packet.elementId
-                                table.insert(HARVESTABLE_ELEMENTS, elem)
-                                break
-                            end
+                        --Print("Repoped elem")
+                        if not gathering and not sortByDist then
+                            table.insert(InteractiveThread, function()
+                                local elementId = v.elementId
+                                local elementTypeId = packet.elementTypeId
+                                local elementCellId = v.elementCellId
+                                table.insert(MAP_COMPLEMENTARY.statedElements, {
+                                    elementId = elementId,
+                                    elementCellId = elementCellId
+                                })
+                                table.insert(MAP_COMPLEMENTARY.integereractiveElements, {
+                                    elementId = elementId,
+                                    elementTypeId = elementTypeId,
+                                    onCurrentMap = true,
+                                    enabledSkills = {
+                                        { skillInstanceUid = 0 }
+                                    }
+                                })
+                            end)
+                            --developer:suspendScriptUntil("InteractiveElementUpdatedMessage", 0, false)
+                        elseif gathering then
+                            local elem = {}
+                            elem.deleted = false
+                            elem.cellId = v.elementCellId
+                            elem.elementId = packet.elementId
+                            table.insert(HARVESTABLE_ELEMENTS, elem)
                         end
+                        break
                     end
                 end
             elseif #packet.disabledSkills > 0 then
-                for i = #HARVESTABLE_ELEMENTS, 1, -1 do
-                    if HARVESTABLE_ELEMENTS[i].elementId == packet.elementId then
+                --Print('depop')
+                for _, v in pairs(HARVESTABLE_ELEMENTS) do
+                    if v ~= nil and v.elementId == packet.elementId then
                         --Print("deleted")
-                        HARVESTABLE_ELEMENTS[i].deleted = true
+                        v.deleted = true
                         break
                     end
                 end
             end
         end
+        reveiveInteractPacket = false
     end
 
     function CB_MapMovementMessageGather(packet)
@@ -1512,6 +1594,21 @@ AI_FILE = "ModSpellPriority.lua"
         elseif string.lower(msgType) == "error" then
             global:printError("[ERROR]["..header.."] "..msg)
         end
+    end
+
+    function Dump(t)
+        local function dmp(t, l, k)
+            if type (t) == "table" then
+                Print(string.format ("% s% s:", string.rep ("", l * 2 ), tostring (k)))
+                for k, v in pairs(t) do
+                    dmp(v, l + 1, k)
+                end
+            else
+                Print(string.format ("% s% s:% s", string.rep ( "", l * 2), tostring (k), tostring (t)))
+            end
+        end
+    
+        dmp(t, 1, "root")
     end
 --
 -- Quête Info
