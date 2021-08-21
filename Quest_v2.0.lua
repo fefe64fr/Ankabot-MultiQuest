@@ -7,6 +7,14 @@ Dialog = {}
 Utils = {}
 Error = {}
 
+-- Ankabot var
+
+MIN_MONSTERS = 1
+MAX_MONSTERS = 8
+
+FORBIDDEN_MONSTERS = {}
+FORCE_MONSTERS = {}
+
 -- Ankabot Main
 
 function move()
@@ -102,12 +110,16 @@ function Quest:StepManager()
 
         developer:suspendScriptUntilMultiplePackets({"QuestStepInfoMessage", "QuestObjectiveValidatedMessage", "QuestValidatedMessage"}, 0, false)
 
-        Movement:LoadRoad(self.CurrentStepToDo.stepStartMapId)
+        if self.CurrentStepToDo.stepStartMapId ~= nil then
+            Movement:LoadRoad(self.CurrentStepToDo.stepStartMapId)
 
-        if self.CurrentStepToDo.stepStartMapId == map:currentMapId() and not self.StepValidated then
+            if self.CurrentStepToDo.stepStartMapId == map:currentMapId() and not self.StepValidated then
+                self.CurrentStepToDo.EXECUTE() -- Éxécution de l'étape
+            elseif self.CurrentStepToDo.stepStartMapId ~= map:currentMapId() then -- Déplacement jusqu'a la carte du step
+                Movement:MoveNext()
+            end
+        else
             self.CurrentStepToDo.EXECUTE() -- Éxécution de l'étape
-        elseif self.CurrentStepToDo.stepStartMapId ~= map:currentMapId() then -- Déplacement jusqu'a la carte du step
-            Movement:MoveNext()
         end
     end
 
@@ -322,6 +334,8 @@ end
 
 Movement.RoadLoaded = false
 
+Movement.RZNextMapId = -1
+
 function Movement:LoadRoad(mapIdDest)
     local currentMapId = map:currentMapId()
     if currentMapId ~= mapIdDest and not self.RoadLoaded then
@@ -339,6 +353,87 @@ function Movement:MoveNext()
     map:moveRoadNext()
 end
 
+function Movement:RoadZone(tblMapId)
+    if tblMapId ~= nil and Utils:LenghtOfTable(tblMapId) > 0 then
+        if map:currentMapId() == self.RZNextMapId or self.RZNextMapId == -1 then
+            Utils:Print("Get next rand roadMapId")
+
+            local maxDist = 0
+            local tblMapIdDist = {}
+
+            for _, v in pairs(tblMapId) do
+                local dist = map:GetDistance(map:currentMapId(), v)
+                local ins = { mapId = v, dist = dist }
+                if dist > maxDist then
+                    maxDist = dist
+                end
+                --Print("Dist : "..dist)
+                table.insert(tblMapIdDist, ins)
+            end
+            --Print("MaxDist : "..maxDist)
+
+            tblMapIdDist = Utils:ShuffleTbl(tblMapIdDist)
+
+            for _, v in pairs(tblMapIdDist) do
+                if v.dist >= math.ceil(maxDist / 1.5) then
+                    self.RZNextMapId = v.mapId
+                    break
+                end
+            end
+
+            Utils:Print("Next roadMapId = "..self.RZNextMapId)
+
+            if not map:loadMove(self.RZNextMapId) then
+                Utils:Print("Impossible de charger un chemin jusqu'a la mapId : ("..self.RZNextMapId..") changement de map avant re tentative", "RoadZone", "warn")
+                --local dir, mapId = Get_RandomNeighbourMapId()
+                --map:changeMap(dir)
+            end
+        end
+
+        self:MoveNext()
+
+        Utils:Print("Apres MoveNext", "RoadZone")
+        self.RZNextMapId = -1
+    else
+        Utils:Print("Table nil", "RoadZone", "error")
+    end
+end
+
+function Movement:Get_TblZoneArea(area)
+    for kArea, vArea in pairs(self.ZoneAreaMapId) do
+        if Utils:Equal(kArea, area) then
+            return vArea
+        end
+    end
+end
+
+function Movement:Get_TblZoneSubArea(area, subArea)
+    if type(subArea) == "string" then
+        for kSubArea, vTblMapIdArea in pairs(self:Get_TblZoneArea(area)) do
+            if Utils:Equal(kSubArea, subArea) then
+                return vTblMapIdArea
+            end
+        end
+
+    elseif type(subArea) == "table" then
+        local zoneArea = self:Get_TblZoneArea(area)
+        local retTblMapId = {}
+
+        for _, vSubArea in pairs(subArea) do
+            for kSubArea, vTblMapIdArea in pairs(zoneArea) do
+                if Utils:Equal(kSubArea, vSubArea) then
+                    for _, vMapId in pairs(vTblMapIdArea) do
+                        table.insert(retTblMapId, vMapId)
+                    end
+                    break
+                end
+            end
+        end
+
+        return retTblMapId
+    end
+end
+
 -- Dialog
 
 Dialog.IsDialog = false
@@ -354,7 +449,9 @@ function Dialog:NpcDialogRequest(npcId)
             return msg
         end)
     else
-        Utils:Print("Un dialog et ouvert avec un NPC", "NpcDialogQuestionMessage", "error")
+        Utils:Print("Un dialog et ouvert avec un NPC", "NpcDialogRequest", "error")
+        global:leaveDialog()
+        self.IsDialog = false
     end
     developer:suspendScriptUntilMultiplePackets({"NpcDialogCreationMessage", "NpcDialogQuestionMessage"}, 0, false)
 end
@@ -576,6 +673,17 @@ function Utils:LenghtOfTable(tbl)
     else
         return 0
     end
+end
+
+function Utils:ShuffleTbl(tbl)
+    local ret = tbl
+
+    for i = #ret, 2, -1 do
+        local j = global:random(1, i)
+        ret[i], ret[j] = ret[j], ret[i]
+    end
+
+    return ret
 end
 
 -- Quest Solution
@@ -1007,6 +1115,600 @@ Quest.QuestSolution["Espoirs et tragédies"] = {
                 Dialog:NpcReply(25118, "slow")
                 Dialog:NpcReply(25117, "slow")
             end
+        }
+    }
+}
+
+Quest.QuestSolution["Mise à l'épreuve"] = {
+    questId = 1642,
+    requiredFinishedQuest = { 1632 },
+    stepSolution = {
+        ["START"] = {
+            displayInfo = "Étape 0 / 4 -- Récupérer la quête",
+            stepStartMapId = 153356294,
+            ["EXECUTE"] = function()
+                Dialog:NpcDialogRequest(-20000)
+                Dialog:NpcReply(25048, "slow")
+                Dialog:NpcReply(-1)
+                Dialog:NpcReply(25045)
+            end
+        },
+        ["9828"] = {
+            displayInfo = "Étape 1 / 4 -- Allez voir le Caporal Mynerve",
+            stepStartMapId = 153356292,
+            ["EXECUTE"] = function()
+                local possibleIdReply = {
+                    25091,
+                    25089,
+                    25088
+                }
+                Dialog:NpcDialogRequest(-20000)
+                Dialog:NpcReplyUntilLeave(possibleIdReply)
+            end
+        },
+        ["9829"] = {
+            displayInfo = "Étape 2 / 4 -- Combat contre le Caporal Mynerve",
+            stepStartMapId = 153356292,
+            ["EXECUTE"] = function()
+                Dialog:NpcDialogRequest(-20000)
+                Dialog:NpcReply(-1, "slow")
+                Dialog:NpcReply(-1)
+            end
+        },
+        ["9830"] = {
+            displayInfo = "Étape 3 / 4 -- Parler au Capitaine Mynerve",
+            stepStartMapId = 153356292,
+            ["EXECUTE"] = function()
+                Dialog:NpcDialogRequest(-20000)
+                Dialog:NpcReply(-1, "slow")
+                Dialog:NpcReply(-1, "slow")
+            end
+        },
+        ["9831"] = {
+            displayInfo = "Étape 4 / 4 -- Parler au Capitaine des kerubims",
+            stepStartMapId = 153356294,
+            ["EXECUTE"] = function()
+                Dialog:NpcDialogRequest(-20000)
+                Dialog:NpcReply(-1, "slow")
+                Dialog:NpcReply(-1, "slow")
+                Dialog:NpcReply(-1, "slow")
+                Dialog:NpcReply(-1, "slow")
+                Dialog:NpcReply(-1, "slow")
+            end
+        }
+    }
+}
+
+Quest.QuestSolution["Champs de bataille"] = {
+    questId = 1643,
+    requiredFinishedQuest = { 1642 },
+    stepSolution = { 
+        ["START"] = {
+            displayInfo = "Étape 0 / 5 -- Récupérer la quête",
+            stepStartMapId = 153356294,
+            ["EXECUTE"] = function()
+                Dialog:NpcDialogRequest(-20000)
+                Dialog:NpcReply(-1, "slow")
+                Dialog:NpcReply(-1)
+                Dialog:NpcReply(-1)
+            end
+        },
+        ["9832"] = {
+            displayInfo = "Étape 1 / 5 -- Combattre x1 Tofu chimérique",
+            ["EXECUTE"] = function()
+                MIN_MONSTERS = 1
+                MAX_MONSTERS = 2
+
+                FORCE_MONSTERS = {970}
+
+                map:fight()
+                Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Champs"))
+            end
+        },
+        ["9833"] = {
+            displayInfo = "Étape 2 / 5 -- Combattre x1 Pissenlit Miroitant",
+            ["EXECUTE"] = function()
+                MIN_MONSTERS = 1
+                MAX_MONSTERS = 2
+
+                FORCE_MONSTERS = {979}
+
+                map:fight()
+                Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Champs"))
+            end
+        },
+        ["9834"] = {
+            displayInfo = "Étape 3 / 5 -- Combattre x1 Rose Vaporeuse",
+            ["EXECUTE"] = function()
+                MIN_MONSTERS = 1
+                MAX_MONSTERS = 2
+
+                FORCE_MONSTERS = {980}
+
+                map:fight()
+                Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Champs"))
+            end
+        },
+        ["9835"] = {
+            displayInfo = "Étape 4 / 5 -- Combattre x1 Tournesol Nébuleux",
+            ["EXECUTE"] = function()
+                MIN_MONSTERS = 1
+                MAX_MONSTERS = 2
+
+                FORCE_MONSTERS = {981}
+
+                map:fight()
+                Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Champs"))
+            end
+        },
+        ["9836"] = {
+            displayInfo = "Étape 5 / 5 -- Retourner voir le Capitaine des Kerubims",
+            stepStartMapId = 153356294,
+            ["EXECUTE"] = function()
+                Dialog:NpcDialogRequest(-20000)
+                Dialog:NpcReply(25061, "slow")
+            end
+        }
+    }
+}
+
+Quest.QuestSolution["Coup d'épée dans l'eau"] = {
+    questId = 1644,
+    requiredFinishedQuest = { 1643 },
+    stepSolution = {
+        ["START"] = {
+            displayInfo = "Étape 0 / 4 -- Récupérer la quête",
+            stepStartMapId = 153356294,
+            ["EXECUTE"] = function()
+                    Dialog:NpcDialogRequest(-20000)
+                    Dialog:NpcReply(25061, "slow")
+                    Dialog:NpcReply(25060)
+            end
+        },
+        ["9837"] = {
+            displayInfo = "Étape 1 / 4 -- Combattre x2 Petit Gloot",
+            ["EXECUTE"] = function()
+                MIN_MONSTERS = 1
+                MAX_MONSTERS = 2
+
+                FORCE_MONSTERS = {4109}
+
+                map:fight()
+                Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Lac"))
+            end
+        },
+        ["9838"] = {
+            displayInfo = "Étape 2 / 4 -- Combattre x2 Plikplok",
+            ["EXECUTE"] = function()
+                MIN_MONSTERS = 1
+                MAX_MONSTERS = 2
+
+                FORCE_MONSTERS = {4108}
+
+                map:fight()
+                Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Lac"))
+            end
+        },
+        ["9839"] = {
+            displayInfo = "Étape 3 / 4 -- Combattre x1 Grand Splatch",
+            ["EXECUTE"] = function()
+                MIN_MONSTERS = 1
+                MAX_MONSTERS = 2
+
+                FORCE_MONSTERS = {4110}
+
+                map:fight()
+                Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Lac"))
+            end
+        },
+        ["9840"] = {
+            displayInfo = "Étape 4 / 4 -- Retourner voir le Capitaine des Kerubims",
+            stepStartMapId = 153356294,
+            ["EXECUTE"] = function()
+                    Dialog:NpcDialogRequest(-20000)
+                    Dialog:NpcReply(25063, "slow")
+                    global:leaveDialog()
+            end
+        }
+    }
+}
+
+Quest.QuestSolution["Décime-moi des bouftous"] = {
+    questId = 1645,
+    requiredFinishedQuest = { 1644 },
+    stepSolution = {
+        ["START"] = {
+            displayInfo = "Étape 0 / 5 -- Récupérer la quête",
+            stepStartMapId = 153356294,
+            ["EXECUTE"] = function()
+                Dialog:NpcDialogRequest(-20000)
+                Dialog:NpcReply(25063, "slow")
+                Dialog:NpcReply(25062, "slow")
+            end
+        },
+        ["9841"] = {
+            displayInfo = "Étape 1 / 5 -- Combattre x1 Boufton Pâlichon",
+            ["EXECUTE"] = function()
+                MIN_MONSTERS = 1
+                MAX_MONSTERS = 2
+
+                FORCE_MONSTERS = {972}
+
+                map:fight()
+                Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Pâturages"))
+            end
+        },
+        ["9842"] = {
+            displayInfo = "Étape 2 / 5 -- Combattre x1 Boufton Orageux",
+            ["EXECUTE"] = function()
+                MIN_MONSTERS = 1
+                MAX_MONSTERS = 2
+
+                FORCE_MONSTERS = {973}
+
+                map:fight()
+                Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Pâturages"))
+            end
+        },
+        ["9843"] = {
+            displayInfo = "Étape 3 / 5 -- Combattre x1 Bouftou Nuageux",
+            ["EXECUTE"] = function()
+                MIN_MONSTERS = 1
+                MAX_MONSTERS = 2
+
+                FORCE_MONSTERS = {971}
+
+                map:fight()
+                Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Pâturages"))
+            end
+        },
+        ["9844"] = {
+            displayInfo = "Étape 4 / 5 -- Combattre x1 Bouftor Éthéré",
+            ["EXECUTE"] = function()
+                MIN_MONSTERS = 1
+                MAX_MONSTERS = 2
+
+                FORCE_MONSTERS = {984}
+
+                map:fight()
+                Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Pâturages"))
+            end
+        },
+        ["9845"] = {
+            displayInfo = "Étape 5 / 5 -- Retourner voir le Capitaine des Kerubims",
+            stepStartMapId = 153356294,
+            ["EXECUTE"] = function()
+                Dialog:NpcDialogRequest(-20000)
+                Dialog:NpcReply(25065, "slow")
+            end
+        }
+    }
+}
+
+Quest.QuestSolution["Chasse aux chapardams"] = {
+    questId = 1646,
+    requiredFinishedQuest = { 1645 },
+    stepSolution = {
+        ["START"] = {
+            displayInfo = "Étape 0 / 4 -- Récupérer la quête",
+            stepStartMapId = 153356294,
+            ["EXECUTE"] = function()
+                Dialog:NpcDialogRequest(-20000)
+                Dialog:NpcReply(25065, "slow")
+                Dialog:NpcReply(25064)
+            end
+        },
+        ["9846"] = {
+            displayInfo = "Étape 1 / 4 -- Combattre x2 Ronronchon",
+            ["EXECUTE"] = function()
+                MIN_MONSTERS = 1
+                MAX_MONSTERS = 2
+
+                FORCE_MONSTERS = {4105}
+
+                map:fight()
+                Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Forêt"))
+            end
+        },
+        ["9847"] = {
+            displayInfo = "Étape 2 / 4 -- Combattre x2 Tigrimas",
+            ["EXECUTE"] = function()
+                MIN_MONSTERS = 1
+                MAX_MONSTERS = 2
+
+                FORCE_MONSTERS = {4106}
+
+                map:fight()
+                Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Forêt"))
+            end
+        },
+        ["9848"] = {
+            displayInfo = "Étape 3 / 4 -- Combattre x2 Chakrobat",
+            ["EXECUTE"] = function()
+                MIN_MONSTERS = 1
+                MAX_MONSTERS = 2
+
+                FORCE_MONSTERS = {982}
+
+                map:fight()
+                Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Forêt"))
+            end
+        },
+        ["9849"] = {
+            displayInfo = "Étape 4 / 4 -- Retourner voir le Capitaine des Kerubims",
+            stepStartMapId = 153356294,
+            ["EXECUTE"] = function()
+                Dialog:NpcDialogRequest(-20000)
+                Dialog:NpcReply(-1, "slow")
+            end
+        }
+    }
+}
+
+Quest.QuestSolution["Leçon d'humilité"] = {
+    questId = 1647,
+    requiredFinishedQuest = { 1646 },
+    stepSolution = {
+        ["START"] = {
+            displayInfo = "Étape 0 / 2 -- Récupérer la quête",
+            stepStartMapId = 153356294,
+            ["EXECUTE"] = function()
+                Dialog:NpcDialogRequest(-20000)
+                Dialog:NpcReply(25067, "slow")
+                Dialog:NpcReply(25066)
+            end
+        },
+        ["9850"] = {
+            displayInfo = "Étape 1 / 2 -- Combattre Kruella Freuz",
+            stepStartMapId = 153879040,
+            ["EXECUTE"] = function()
+                Dialog:NpcDialogRequest(-20000)
+                Dialog:NpcReply(25082, "slow")
+            end
+        },
+        ["9851"] = {
+            displayInfo = "Étape 2 / 2 -- Retourner voir le Capitaine des Kerubims",
+            stepStartMapId = 153356294,
+            ["EXECUTE"] = function()
+                Dialog:NpcDialogRequest(-20000)
+                Dialog:NpcReply(25071, "slow")
+            end
+        }
+    }
+}
+
+Quest.QuestSolution["Des chafers qui marchent"] = {
+    questId = 1648,
+    requiredFinishedQuest = { 1647 },
+    stepSolution = {
+        ["START"] = {
+            displayInfo = "Étape 0 / 8 -- Récupérer la quête",
+            stepStartMapId = 153356294,
+            ["EXECUTE"] = function()
+                local possibleIdReply = {
+                    25071,
+                    25070,
+                    25069,
+                    25068
+                }
+
+                Dialog:NpcDialogRequest(-20000)
+                Dialog:NpcReplyUntilLeave(possibleIdReply)
+            end
+        },
+        ["9852"] = {
+            displayInfo = "Étape 1 / 8 -- Combattre x1 Chafer débutant",
+            ["EXECUTE"] = function()
+                MIN_MONSTERS = 1
+                MAX_MONSTERS = 2
+
+                FORCE_MONSTERS = {4046}
+
+                map:fight()
+                Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Cimetière"))
+            end
+        },
+        ["9853"] = {
+            displayInfo = "Étape 2 / 8 -- Combattre x1 Chafer furtif",
+            ["EXECUTE"] = function()
+                MIN_MONSTERS = 1
+                MAX_MONSTERS = 2
+
+                FORCE_MONSTERS = {4047}
+
+                map:fight()
+                Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Cimetière"))
+            end
+        },
+        ["9854"] = {
+            displayInfo = "Étape 3 / 8 -- Combattre x1 Chafer éclaireur",
+            ["EXECUTE"] = function()
+                MIN_MONSTERS = 1
+                MAX_MONSTERS = 2
+
+                FORCE_MONSTERS = {4048}
+
+
+                map:fight()
+                Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Cimetière"))
+            end
+        },
+        ["9855"] = {
+            displayInfo = "Étape 4 / 8 -- Combattre x1 Chafer Piquier",
+            ["EXECUTE"] = function()
+                MIN_MONSTERS = 1
+                MAX_MONSTERS = 2
+
+                FORCE_MONSTERS = {4049}
+
+                map:fight()
+                Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Cimetière"))
+            end
+        },
+        ["9856"] = {
+            displayInfo = "Étape 5 / 8 -- Découvrir la carte : Tombeau de Percy Klop",
+            stepStartMapId = 153881090,
+            ["EXECUTE"] = function()
+                map:door(361)
+            end
+        },
+        ["9859"] = {
+            displayInfo = "Étape 6 / 8 -- Fouiller la tombe",
+            stepStartMapId = 153356288,
+            ["EXECUTE"] = function()
+                map:door(343)
+            end
+        },
+        ["9857"] = {
+            displayInfo = "Étape 7 / 8 -- Combattre x1 Percy Klop",
+            stepStartMapId = 153356288,
+            ["EXECUTE"] = function()
+                Dialog:NpcDialogRequest(-20000)
+                Dialog:NpcReply(25086)
+            end
+        },
+        ["9858"] = {
+            displayInfo = "Étape 8 / 8 -- Retourner voir le Capitaine des Kerubims",
+            stepStartMapId = 153356294,
+            ["EXECUTE"] = function()
+                Dialog:NpcDialogRequest(-20000)
+                Dialog:NpcReply(25073)
+            end
+        }
+    }
+}
+
+-- Zone area mapId
+
+Movement.ZoneAreaMapId = {
+    ["Incarnam"] = {
+        ["Route des âmes"] = {
+            154010883,
+            154010371,
+            153878787,
+            153879299,
+            153879811,
+            153880323,
+            153880835
+        },
+        ["Pâturages"] = {
+            153879301,
+            153879813,
+            153880325,
+            153880836,
+            153880324,
+            153879812,
+            153879300
+        },
+        ["Champs"] = {
+            153878788,
+            154010372,
+            154010884,
+            154010885,
+            154011397,
+            154011398,
+            154010886,
+            154010374,
+            154010373
+        },
+        ["Lac"] = {
+            153878786,
+            153878785,
+            153878528,
+            153878529,
+            154010113,
+            154010112,
+            154010624,
+            154010881,
+            154010369,
+            154010882,
+            154010370
+        },
+        ["Forêt"] = {
+            153879298,
+            153879297,
+            153879040,
+            153879552,
+            153879809,
+            153879810,
+            153880322,
+            153880321
+        },
+        ["Cimetière"] = {
+            153881090,
+            153880578,
+            153881089,
+            153881601,
+            153881600,
+            153881088
+        },
+        ["Mine"] = {
+            153358338,
+            153358336,
+            153357314,
+            153357312
+        },
+        ["Crypte de Kardorim"] = {
+            152829952,
+            152830976,
+            152832000,
+            152833024,
+            152834048,
+            152835072
+        }
+    },
+    ["Astrub"] = {
+        ["Cité d'Astrub"] = {
+            188746756,
+            188746755,
+            188746754,
+            188746753,
+            188746241,
+            188746242,
+            188745730,
+            188745729,
+            188745217,
+            188745218,
+            188744706,
+            188744705,
+            188744193,
+            188744194,
+            188743681,
+            188743682,
+            188743683,
+            188744195,
+            188744196,
+            188743684,
+            188743685,
+            188744197,
+            188744198,
+            188743686,
+            188743687,
+            188744199,
+            188744198,
+            188744710,
+            188744711,
+            188745223,
+            188745222,
+            188745734,
+            188745735,
+            188746247,
+            188746246,
+            188746759,
+            188746758,
+            188746757,
+            191106050,
+            191106048,
+            191105024,
+            191104000,
+            191102976,
+            191102978,
+            191102980,
+            191104004,
+            191105028,
+            191106052,
+            191105026,
+            191104002
         }
     }
 }
