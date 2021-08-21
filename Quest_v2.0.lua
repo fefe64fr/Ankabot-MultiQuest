@@ -15,6 +15,8 @@ MAX_MONSTERS = 8
 FORBIDDEN_MONSTERS = {}
 FORCE_MONSTERS = {}
 
+GATHER = {}
+
 -- Ankabot Main
 
 function move()
@@ -356,7 +358,7 @@ end
 function Movement:RoadZone(tblMapId)
     if tblMapId ~= nil and Utils:LenghtOfTable(tblMapId) > 0 then
         if map:currentMapId() == self.RZNextMapId or self.RZNextMapId == -1 then
-            Utils:Print("Get next rand roadMapId")
+            --Utils:Print("Get next rand roadMapId")
 
             local maxDist = 0
             local tblMapIdDist = {}
@@ -381,7 +383,7 @@ function Movement:RoadZone(tblMapId)
                 end
             end
 
-            Utils:Print("Next roadMapId = "..self.RZNextMapId)
+            --Utils:Print("Next roadMapId = "..self.RZNextMapId)
 
             if not map:loadMove(self.RZNextMapId) then
                 Utils:Print("Impossible de charger un chemin jusqu'a la mapId : ("..self.RZNextMapId..") changement de map avant re tentative", "RoadZone", "warn")
@@ -392,7 +394,7 @@ function Movement:RoadZone(tblMapId)
 
         self:MoveNext()
 
-        Utils:Print("Apres MoveNext", "RoadZone")
+        --Utils:Print("Apres MoveNext", "RoadZone")
         self.RZNextMapId = -1
     else
         Utils:Print("Table nil", "RoadZone", "error")
@@ -432,6 +434,26 @@ function Movement:Get_TblZoneSubArea(area, subArea)
 
         return retTblMapId
     end
+end
+
+function Movement:InMapChecker(tbl)
+    for _, v in pairs(tbl) do
+        if map:currentMapId() == v then
+            return true
+        end
+    end
+    return false
+end
+
+function Movement:Fight()
+    if character:lifePointsP() < 90 then
+        Utils:Print("Fight", "Régénération des points de vie avant combat")
+
+        while character:lifePointsP() < 90 do
+            global:delay(1)
+        end
+    end
+    map:fight()
 end
 
 -- Dialog
@@ -578,17 +600,6 @@ Packet.packetToSub = {
         ["QuestObjectiveValidatedMessage"] = CB_QuestObjectiveValidated,
         ["QuestStartedMessage"] = CB_QuestStarted,
         ["QuestValidatedMessage"] = CB_QuestValidated,
-    },
-    ["Fight"] = {
-        ["MapComplementaryInformationsDataMessage"] = CB_MapComplementaryInfoDataMessageFight,
-        ["GameRolePlayShowActorMessage"] = CB_ShowActorMessage,
-        ["GameContextRemoveElementMessage"] = CB_ContextRemoveElementMessage,
-        ["GameMapMovementMessage"] = CB_MapMovementMessage,
-    },
-    ["Gather"] = {
-        ["MapComplementaryInformationsDataMessage"] = CB_MapComplementaryInfoDataMessageGather,
-        ["StatedElementUpdatedMessage"] = CB_StatedElementUpdatedMessage,
-        ["InteractiveElementUpdatedMessage"] = CB_InteractiveElementUpdatedMessage
     },
     ["Dialog"] = {
         ["NpcDialogCreationMessage"] = CB_NpcDialogCreationMessage,
@@ -1201,7 +1212,7 @@ Quest.QuestSolution["Champs de bataille"] = {
 
                 FORCE_MONSTERS = {970}
 
-                map:fight()
+                Movement:Fight()
                 Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Champs"))
             end
         },
@@ -1213,7 +1224,7 @@ Quest.QuestSolution["Champs de bataille"] = {
 
                 FORCE_MONSTERS = {979}
 
-                map:fight()
+                Movement:Fight()
                 Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Champs"))
             end
         },
@@ -1225,7 +1236,7 @@ Quest.QuestSolution["Champs de bataille"] = {
 
                 FORCE_MONSTERS = {980}
 
-                map:fight()
+                Movement:Fight()
                 Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Champs"))
             end
         },
@@ -1237,7 +1248,7 @@ Quest.QuestSolution["Champs de bataille"] = {
 
                 FORCE_MONSTERS = {981}
 
-                map:fight()
+                Movement:Fight()
                 Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Champs"))
             end
         },
@@ -1273,7 +1284,7 @@ Quest.QuestSolution["Coup d'épée dans l'eau"] = {
 
                 FORCE_MONSTERS = {4109}
 
-                map:fight()
+                Movement:Fight()
                 Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Lac"))
             end
         },
@@ -1285,7 +1296,7 @@ Quest.QuestSolution["Coup d'épée dans l'eau"] = {
 
                 FORCE_MONSTERS = {4108}
 
-                map:fight()
+                Movement:Fight()
                 Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Lac"))
             end
         },
@@ -1297,7 +1308,7 @@ Quest.QuestSolution["Coup d'épée dans l'eau"] = {
 
                 FORCE_MONSTERS = {4110}
 
-                map:fight()
+                Movement:Fight()
                 Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Lac"))
             end
         },
@@ -1334,7 +1345,7 @@ Quest.QuestSolution["Décime-moi des bouftous"] = {
 
                 FORCE_MONSTERS = {972}
 
-                map:fight()
+                Movement:Fight()
                 Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Pâturages"))
             end
         },
@@ -1346,7 +1357,7 @@ Quest.QuestSolution["Décime-moi des bouftous"] = {
 
                 FORCE_MONSTERS = {973}
 
-                map:fight()
+                Movement:Fight()
                 Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Pâturages"))
             end
         },
@@ -1358,7 +1369,7 @@ Quest.QuestSolution["Décime-moi des bouftous"] = {
 
                 FORCE_MONSTERS = {971}
 
-                map:fight()
+                Movement:Fight()
                 Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Pâturages"))
             end
         },
@@ -1370,7 +1381,7 @@ Quest.QuestSolution["Décime-moi des bouftous"] = {
 
                 FORCE_MONSTERS = {984}
 
-                map:fight()
+                Movement:Fight()
                 Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Pâturages"))
             end
         },
@@ -1406,7 +1417,7 @@ Quest.QuestSolution["Chasse aux chapardams"] = {
 
                 FORCE_MONSTERS = {4105}
 
-                map:fight()
+                Movement:Fight()
                 Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Forêt"))
             end
         },
@@ -1418,7 +1429,7 @@ Quest.QuestSolution["Chasse aux chapardams"] = {
 
                 FORCE_MONSTERS = {4106}
 
-                map:fight()
+                Movement:Fight()
                 Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Forêt"))
             end
         },
@@ -1430,7 +1441,7 @@ Quest.QuestSolution["Chasse aux chapardams"] = {
 
                 FORCE_MONSTERS = {982}
 
-                map:fight()
+                Movement:Fight()
                 Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Forêt"))
             end
         },
@@ -1504,7 +1515,7 @@ Quest.QuestSolution["Des chafers qui marchent"] = {
 
                 FORCE_MONSTERS = {4046}
 
-                map:fight()
+                Movement:Fight()
                 Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Cimetière"))
             end
         },
@@ -1516,7 +1527,7 @@ Quest.QuestSolution["Des chafers qui marchent"] = {
 
                 FORCE_MONSTERS = {4047}
 
-                map:fight()
+                Movement:Fight()
                 Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Cimetière"))
             end
         },
@@ -1529,7 +1540,7 @@ Quest.QuestSolution["Des chafers qui marchent"] = {
                 FORCE_MONSTERS = {4048}
 
 
-                map:fight()
+                Movement:Fight()
                 Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Cimetière"))
             end
         },
@@ -1541,7 +1552,7 @@ Quest.QuestSolution["Des chafers qui marchent"] = {
 
                 FORCE_MONSTERS = {4049}
 
-                map:fight()
+                Movement:Fight()
                 Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Cimetière"))
             end
         },
@@ -1573,6 +1584,741 @@ Quest.QuestSolution["Des chafers qui marchent"] = {
             ["EXECUTE"] = function()
                 Dialog:NpcDialogRequest(-20000)
                 Dialog:NpcReply(25073)
+            end
+        }
+    }
+}
+
+Quest.QuestSolution["Transport peu commun"] = {
+    questId = 1639,
+    stepSolution = { 
+        ["START"] = {
+            displayInfo = "Étape 0 / 3 -- Récupérer la quête",
+            stepStartMapId = 154010371,
+            ["EXECUTE"] = function()
+                local possibleIdReply = {
+                    24936,
+                    24935,
+                    24934,
+                    24933,
+                    24932,
+                    24931
+                }
+
+                Dialog:NpcDialogRequest(-20000)
+                Dialog:NpcReplyUntilLeave(possibleIdReply)
+            end
+        },
+        ["9814"] = {
+            displayInfo = "Étape 1 / 3 -- Allez voir Xélora Fistol",
+            stepStartMapId = 153879813,
+            ["EXECUTE"] = function()
+                Dialog:NpcDialogRequest(-20000)
+                Dialog:NpcReply(25020, "slow")
+                Dialog:NpcReply(25019)
+                Dialog:NpcReply(25018)
+                Dialog:NpcReply(25017)
+                Dialog:NpcReply(25016)
+            end
+        },
+        ["9815"] = {
+            displayInfo = "Étape 2 / 3 -- Examiner le zaap des pâturages",
+            stepStartMapId = 153879813,
+            ["EXECUTE"] = function()
+                map:useById(509249, -1)
+            end
+        },
+        ["9816"] = {
+            displayInfo = "Étape 3 / 3 -- Retourner voir Ternette Nhin",
+            stepStartMapId = 154010371,
+            ["EXECUTE"] = function()
+                Dialog:NpcDialogRequest(-20000)
+                Dialog:NpcReply(24940, "slow")
+                global:leaveDialog()
+            end
+        }
+    }
+}
+
+Quest.QuestSolution["Des vestiges de légende"] = {
+    questId = 1640,
+    requiredFinishedQuest = { 1639 },
+    stepSolution = { 
+        ["START"] = {
+            displayInfo = "Étape 0 / 3 -- Récupérer la quête",
+            stepStartMapId = 154010371,
+            ["EXECUTE"] = function()
+                local possibleIdReply = {
+                    24943,
+                    24942,
+                    24941
+                }
+
+                Dialog:NpcDialogRequest(-20000)
+                Dialog:NpcReplyUntilLeave(possibleIdReply)
+            end
+        },
+        ["9817"] = {
+            displayInfo = "Étape 1 / 6 -- Examiner la stèle d'un vestige sur la route des âmes",
+            stepStartMapId = 153878787,
+            ["EXECUTE"] = function()
+                map:door(485)
+                global:leaveDialog()
+            end
+        },
+        ["9818"] = {
+            displayInfo = "Étape 2 / 6 -- Examiner la stèle d'un vestige des champs",
+            stepStartMapId = 154010886,
+            ["EXECUTE"] = function()
+                map:door(332)
+                global:leaveDialog()
+            end
+        },
+        ["9819"] = {
+            displayInfo = "Étape 3 / 6 -- Examiner la stèle d'un vestige près du lac",
+            stepStartMapId = 154010882,
+            ["EXECUTE"] = function()
+                map:door(471)
+                global:leaveDialog()
+            end
+        },
+        ["9820"] = {
+            displayInfo = "Étape 4 / 6 -- Examiner la stèle d'un vestige dans les pâturages",
+            stepStartMapId = 153879301,
+            ["EXECUTE"] = function()
+                map:door(344)
+                global:leaveDialog()
+            end
+        },
+        ["9821"] = {
+            displayInfo = "Étape 5 / 6 -- Examiner la stèle d'un vestige dans la forêt",
+            stepStartMapId = 153879297,
+            ["EXECUTE"] = function()
+                map:door(415)
+                global:leaveDialog()
+            end
+        },
+        ["9822"] = {
+            displayInfo = "Étape 6 / 6 -- Retourner voir Ternette N'hin",
+            stepStartMapId = 154010371,
+            ["EXECUTE"] = function()
+                Dialog:NpcDialogRequest(-20000)
+                Dialog:NpcReply(24947, "slow")
+            end
+        }
+    }
+}
+
+Quest.QuestSolution["Vu du ciel"] = {
+    questId = 1641,
+    requiredFinishedQuest = { 1640 },
+    stepSolution = { 
+        ["START"] = {
+            displayInfo = "Étape 0 / 5 -- Récupérer la quête",
+            stepStartMapId = 154010371,
+            ["EXECUTE"] = function()
+                local possibleIdReply = {
+                    24950,
+                    24949,
+                    24948
+                }
+
+                Dialog:NpcDialogRequest(-20000)
+                Dialog:NpcReplyUntilLeave(possibleIdReply)
+            end
+        },
+        ["9823"] = {
+            displayInfo = "Étape 1 / 5 -- Allez voir Matu Vuh",
+            stepStartMapId = 154010374,
+            ["EXECUTE"] = function()
+                Dialog:NpcDialogRequest(-20000)
+                Dialog:NpcReply(24957, "slow")
+                Dialog:NpcReply(24956)
+            end
+        },
+        ["9824"] = {
+            displayInfo = "Étape 2 / 5 -- Utiliser la longue vue de Matu Vuh",
+            stepStartMapId = 154010374,
+            ["EXECUTE"] = function()
+                map:useById(489417, -1)
+                global:leaveDialog()
+            end
+        },
+        ["9825"] = {
+            displayInfo = "Étape 3 / 5 -- Allez voir galilea",
+            stepStartMapId = 154010113,
+            ["EXECUTE"] = function()
+                Dialog:NpcDialogRequest(-20000)
+                Dialog:NpcReply(24963)
+                Dialog:NpcReply(24962)
+            end
+        },
+        ["9826"] = {
+            displayInfo = "Étape 4 / 5 -- Utiliser la longue vue de Galilea",
+            stepStartMapId = 154010113,
+            ["EXECUTE"] = function()
+                map:useById(489418, -1)
+                global:leaveDialog()
+            end
+        },
+        ["9827"] = {
+            displayInfo = "Étape 5 / 5 -- Retourner voir Ternette Nhin",
+            stepStartMapId = 154010371,
+            ["EXECUTE"] = function()
+                Dialog:NpcDialogRequest(-20000)
+                Dialog:NpcReply(24952)
+            end
+        }
+    }
+}
+
+Quest.QuestSolution["Produits naturels"] = {
+    questId = 1649,
+    stepSolution = {
+        ["START"] = {
+            displayInfo = "Étape 0 / 5 -- Récupérer la quête",
+            stepStartMapId = 153878787,
+            ["EXECUTE"] = function()
+                local possibleIdReply = {
+                    25298,
+                    25306,
+                    25304,
+                    25303,
+                    25302,
+                    25301
+                }
+
+                Dialog:NpcDialogRequest(-20000)
+                Dialog:NpcReplyUntilLeave(possibleIdReply)
+            end
+        },
+        ["9863"] = {
+            displayInfo = "Étape 1 / 5 -- Fabriquer x1 Pain d'Incarnam",
+            ["EXECUTE"] = function()
+                if inventory:itemCount(289) < 4 then
+                    GATHER = {38}
+
+                    map:gather()
+                    Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Champs"))
+                else
+                    Movement:LoadRoad(153354242)
+
+                    if map:currentMapId() == 153354242 then
+                        map:useById(489524, -1)
+                        craft:putItem(289, 4)
+                        craft:ready()
+                        global:leaveDialog()
+                    else
+                        Movement:MoveNext()
+                    end
+                end
+            end
+        },
+        ["9864"] = {
+            displayInfo = "Étape 2 / 5 -- Fabriquer x1 Goujon en tranche",
+            ["EXECUTE"] = function()
+                if inventory:itemCount(1782) < 4 then
+                    GATHER = {75}
+
+                    map:gather()
+                    Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Lac"))
+                else
+                    Movement:LoadRoad(153354246)
+
+                    if map:currentMapId() == 153354246 then
+                        map:useById(489364, -1)
+                        craft:putItem(1782, 4)
+                        craft:ready()
+                        global:leaveDialog()
+                    else
+                        Movement:MoveNext()
+                    end
+                end
+            end
+        },
+        ["9866"] = {
+            displayInfo = "Étape 3 / 5 -- Fabriquer x1 Potion de mini soin",
+            ["EXECUTE"] = function()
+                if inventory:itemCount(421) < 4 then
+                    GATHER = {254}
+
+                    map:gather()
+                    Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", {"Forêt", "Lac", "Pâturages", "Route des âmes", "Champs"}))
+                else
+                    Movement:LoadRoad(153355270)
+
+                    if map:currentMapId() == 153355270 then
+                        map:useById(489066, -1)
+                        craft:putItem(421, 4)
+                        craft:ready()
+                        global:leaveDialog()
+                    else
+                        Movement:MoveNext()
+                    end
+                end
+            end
+        },
+        ["FINISH"] = {
+            displayInfo = "Étape 4 / 4 -- Retourner voir Berb N'hin",
+            stepStartMapId = 153878787,
+            ["EXECUTE"] = function()
+                Dialog:NpcDialogRequest(-20000)
+                Dialog:NpcReply(25311)
+            end
+        }
+    }
+}
+
+Quest.QuestSolution["La hache et la pioche"] = {
+    questId = 1650,
+    requiredFinishedQuest = { 1649 },
+    stepSolution = {
+        ["START"] = {
+            displayInfo = "Étape 0 / 3 -- Récupérer la quête",
+            stepStartMapId = 153878787,
+            ["EXECUTE"] = function()
+                local possibleIdReply = {
+                    25312,
+                    25314,
+                    25313,
+                }
+
+                Dialog:NpcDialogRequest(-20000)
+                Dialog:NpcReplyUntilLeave(possibleIdReply)
+            end
+        },
+        ["9871"] = {
+            displayInfo = "Étape 1 / 3 -- Fabriquer x1 Planche Agglomérée",
+            ["EXECUTE"] = function()
+
+                if inventory:itemCount(303) < 6 then -- Frêne
+                    GATHER = {1}
+
+                    map:gather()
+                    Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Forêt"))
+                elseif inventory:itemCount(312) < 4 then -- Fer
+                    GATHER = {17}
+
+                    map:gather()
+                    Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Mine"))
+                else
+                    Movement:LoadRoad(153355266)
+
+                    if map:currentMapId() == 153355266 then
+                        map:useById(489534, -1)
+                        craft:putItem(303, 6)
+                        craft:putItem(312, 4)
+                        craft:ready()
+                        global:leaveDialog()
+                    else
+                        Movement:MoveNext()
+                    end
+                end
+
+            end
+        },
+        ["9872"] = {
+            displayInfo = "Étape 2 / 3 -- Fabriquer x1 Ferrite",
+            ["EXECUTE"] = function()
+                if inventory:itemCount(303) < 10 then -- Frêne
+                    GATHER = {1}
+
+                    map:gather()
+                    Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Forêt"))
+                elseif inventory:itemCount(312) < 6 then -- Fer
+                    GATHER = {17}
+
+                    map:gather()
+                    Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Mine"))
+                else
+                    Movement:LoadRoad(153355264)
+
+                    if map:currentMapId() == 153355264 then
+                        map:useById(489176, -1)
+                        craft:putItem(303, 10)
+                        craft:putItem(312, 6)
+                        craft:ready()
+                        global:leaveDialog()
+                    else
+                        Movement:MoveNext()
+                    end
+                end
+            end
+        },
+        ["FINISH"] = {
+            displayInfo = "Étape 3 / 3 -- Retourner voir Berb N'hin",
+            stepStartMapId = 153878787,
+            ["EXECUTE"] = function()
+                Dialog:NpcDialogRequest(-20000)
+                Dialog:NpcReply(25320)
+            end
+        }
+    }
+}
+
+Quest.QuestSolution["Boune un jour, boune toujours"] = {
+    questId = 1651,
+    requiredFinishedQuest = { 1650 },
+    stepSolution = { 
+        ["START"] = {
+            displayInfo = "Étape 0 / 7 -- Récupérer la quête",
+            stepStartMapId = 153878787,
+            ["EXECUTE"] = function()
+                local possibleIdReply = {
+                    25322,
+                    25326,
+                    25325,
+                    25324,
+                    25323
+                }
+
+                Dialog:NpcDialogRequest(-20000)
+                Dialog:NpcReplyUntilLeave(possibleIdReply)
+            end
+        },
+        ["9875"] = {
+            displayInfo = "Étape 1 / 7 -- Fabriquer x1 Le S'Mesme",
+            ["EXECUTE"] = function()
+                if inventory:itemCount(16512) < 2 then -- Plume chimérique
+                    MIN_MONSTERS = 1
+                    MAX_MONSTERS = 2
+
+                    FORCE_MONSTERS = {970}
+
+                    Movement:Fight()
+                    Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Champs"))
+                elseif inventory:itemCount(303) < 2 then -- Frêne
+                    GATHER = {1}
+
+                    map:gather()
+                    Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Forêt"))
+                else
+                    Movement:LoadRoad(153355272)
+
+                    if map:currentMapId() == 153355272 then
+                        map:useById(489550, -1)
+                        craft:putItem(16512, 2)
+                        craft:putItem(303, 2)
+                        craft:ready()
+                        global:leaveDialog()
+                    else
+                        Movement:MoveNext()
+                    end
+                end
+
+            end
+        },
+        ["9877"] = {
+            displayInfo = "Étape 2 / 7 -- Fabriquer x1 Le Plussain",
+            ["EXECUTE"] = function()
+                if inventory:itemCount(16518) < 2 then -- Feu Intérieur
+                    MIN_MONSTERS = 1
+                    MAX_MONSTERS = 4
+
+                    FORCE_MONSTERS = {}
+
+                    if Movement:InMapChecker(Movement:Get_TblZoneSubArea("Incarnam", "Route des âmes")) then
+                        Movement:Fight()
+                    end
+
+                    Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Route des âmes"))
+                elseif inventory:itemCount(312) < 1 then -- Fer
+                    GATHER = {17}
+
+                    map:gather()
+                    Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Mine"))
+                else
+                    Movement:LoadRoad(153355272)
+
+                    if map:currentMapId() == 153355272 then
+                        map:useById(489550, -1)
+                        craft:putItem(16518, 2)
+                        craft:putItem(312, 1)
+                        craft:ready()
+                        global:leaveDialog()
+                    else
+                        Movement:MoveNext()
+                    end
+                end
+            end
+        },
+        ["9878"] = {
+            displayInfo = "Étape 3 / 7 -- Fabriquer x1 Les Incrustes",
+            ["EXECUTE"] = function()
+                if inventory:itemCount(16513) < 2 then -- Pétale Diaphane
+                    MIN_MONSTERS = 1
+                    MAX_MONSTERS = 4
+
+                    FORCE_MONSTERS = {970}
+
+                    Movement:Fight()
+                    Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Champs"))
+                elseif inventory:itemCount(303) < 2 then -- Frêne
+                    GATHER = {1}
+
+                    map:gather()
+                    Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Forêt"))
+                else
+                    Movement:LoadRoad(153354244)
+
+                    if map:currentMapId() == 153354244 then
+                        map:useById(489570, -1)
+                        craft:putItem(16513, 2)
+                        craft:putItem(303, 2)
+                        craft:ready()
+                        global:leaveDialog()
+                    else
+                        Movement:MoveNext()
+                    end
+                end
+            end
+        },
+        ["9879"] = {
+            displayInfo = "Étape 4 / 7 -- Fabriquer x1 La Spamette",
+            ["EXECUTE"] = function()
+                if inventory:itemCount(16522) < 2 then -- Peau de gloot
+                    MIN_MONSTERS = 1
+                    MAX_MONSTERS = 4
+
+                    FORCE_MONSTERS = {}
+
+                    if Movement:InMapChecker(Movement:Get_TblZoneSubArea("Incarnam", "Lac")) then
+                        Movement:Fight()
+                    end
+                    Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Lac"))
+                elseif inventory:itemCount(421) < 2 then -- Ortie
+                    GATHER = {254}
+
+                    map:gather()
+                    Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", {"Forêt", "Lac", "Pâturages", "Route des âmes", "Champs"}))
+                else
+                    Movement:LoadRoad(153354244)
+
+                    if map:currentMapId() == 153354244 then
+                        map:useById(489570, -1)
+                        craft:putItem(16522, 2)
+                        craft:putItem(421, 2)
+                        craft:ready()
+                        global:leaveDialog()
+                    else
+                        Movement:MoveNext()
+                    end
+                end
+            end
+        },
+        ["9880"] = {
+            displayInfo = "Étape 5 / 7 -- Fabriquer x1 La Cape S'loque",
+            ["EXECUTE"] = function()
+                if inventory:itemCount(1984) < 2 then -- Cendres éternelles
+                    MIN_MONSTERS = 1
+                    MAX_MONSTERS = 4
+
+                    FORCE_MONSTERS = {}
+
+                    if Movement:InMapChecker(Movement:Get_TblZoneSubArea("Incarnam", "Route des âmes")) then
+                        Movement:Fight()
+                    end
+                    Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Route des âmes"))
+                elseif inventory:itemCount(312) < 1 then -- Fer
+                    GATHER = {17}
+
+                    map:gather()
+                    Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Mine"))
+                else
+                    Movement:LoadRoad(153354244)
+
+                    if map:currentMapId() == 153354244 then
+                        map:useById(489571, -1)
+                        craft:putItem(1984, 2)
+                        craft:putItem(312, 1)
+                        craft:ready()
+                        global:leaveDialog()
+                    else
+                        Movement:MoveNext()
+                    end
+                end
+            end
+        },
+        ["9881"] = {
+            displayInfo = "Étape 6 / 7 -- Fabriquer x1 Le Floude",
+            ["EXECUTE"] = function()
+                if inventory:itemCount(16511) < 2 then -- Laine céleste
+                    MIN_MONSTERS = 1
+                    MAX_MONSTERS = 4
+
+                    FORCE_MONSTERS = {}
+
+                    if Movement:InMapChecker(Movement:Get_TblZoneSubArea("Incarnam", "Pâturages")) then
+                        Movement:Fight()
+                    end
+                    Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Pâturages"))
+                elseif inventory:itemCount(421) < 2 then -- Ortie
+                    GATHER = {254}
+
+                    map:gather()
+                    Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", {"Forêt", "Lac", "Pâturages", "Route des âmes", "Champs"}))
+                else
+                    Movement:LoadRoad(153354244)
+
+                    if map:currentMapId() == 153354244 then
+                        map:useById(489571, -1)
+                        craft:putItem(16511, 2)
+                        craft:putItem(421, 2)
+                        craft:ready()
+                        global:leaveDialog()
+                    else
+                        Movement:MoveNext()
+                    end
+                end
+            end
+        },
+        ["FINISH"] = {
+            displayInfo = "Étape 7 / 7 -- Retourner voir Berb N'hin",
+            stepStartMapId = 153878787,
+            ["EXECUTE"] = function()
+                Dialog:NpcDialogRequest(-20000)
+                Dialog:NpcReply(25330)
+            end
+        }
+    }
+}
+
+Quest.QuestSolution["Le choix des armes"] = {
+    questId = 1652,
+    requiredFinishedQuest = { 1651 },
+    stepSolution = {
+        ["START"] = {
+            displayInfo = "Étape 0 / 4 -- Récupérer la quête",
+            stepStartMapId = 153878787,
+            ["EXECUTE"] = function()
+                local possibleIdReply = {
+                    25333,
+                    25336,
+                    25335,
+                    25334
+                }
+
+                Dialog:NpcDialogRequest(-20000)
+                Dialog:NpcReplyUntilLeave(possibleIdReply)
+            end
+        },
+        ["9888"] = {
+            displayInfo = "Étape 1 / 4 -- Fabriquer x1 Demi-Baguette",
+            ["EXECUTE"] = function()
+                if inventory:itemCount(16513) < 3 then -- Pétale Diaphane
+                    MIN_MONSTERS = 1
+                    MAX_MONSTERS = 4
+
+                    FORCE_MONSTERS = {970}
+
+                    if Movement:InMapChecker(Movement:Get_TblZoneSubArea("Incarnam", "Champs")) then
+                        Movement:Fight()
+                    end
+                    Movement:RoadZone(Get_TblZoneSubArea("Incarnam", "Champs"))
+                elseif inventory:itemCount(16511) < 3 then -- Laine céleste
+                    MIN_MONSTERS = 1
+                    MAX_MONSTERS = 4
+
+                    FORCE_MONSTERS = {}
+
+                    if Movement:InMapChecker(Movement:Get_TblZoneSubArea("Incarnam", "Pâturages")) then
+                        Movement:Fight()
+                    end
+                    Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Pâturages"))
+                else
+                    Movement:LoadRoad(153355266)
+
+                    if map:currentMapId() == 153355266 then
+                        map:useById(489533, -1)
+                        craft:putItem(16513, 3)
+                        craft:putItem(16511, 3)
+                        craft:ready()
+                        global:leaveDialog()
+                    else
+                        Movement:MoveNext()
+                    end
+                end
+            end
+        },
+        ["9889"] = {
+            displayInfo = "Étape 2 / 4 -- Fabriquer x1 Hachette de bûcheron",
+            stepStartMapId = 153355264,
+            ["EXECUTE"] = function()
+                if inventory:itemCount(16511) < 5 then -- Laine céleste
+                    MIN_MONSTERS = 1
+                    MAX_MONSTERS = 4
+
+                    FORCE_MONSTERS = {}
+
+                    if Movement:InMapChecker(Movement:Get_TblZoneSubArea("Incarnam", "Pâturages")) then
+                        Movement:Fight()
+                    end
+                    Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Pâturages"))
+                elseif inventory:itemCount(312) < 1 then -- Fer
+                    GATHER = {17}
+
+                    map:gather()
+                    Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Mine"))
+                else
+                    Movement:LoadRoad(153355264)
+
+                    if map:currentMapId() == 153355264 then
+                        map:useById(489177, -1)
+                        craft:putItem(16511, 5)
+                        craft:putItem(312, 1)
+                        craft:ready()
+                        global:leaveDialog()
+                    else
+                        Movement:MoveNext()
+                    end
+                end
+            end
+        },
+        ["9890"] = {
+            displayInfo = "Étape 3 / 4 -- Fabriquer x1 Clef de la crypte de kardorim",
+            ["EXECUTE"] = function()
+                if inventory:itemCount(16524) < 3 then -- Relique d'incarnam
+                    MIN_MONSTERS = 1
+                    MAX_MONSTERS = 4
+
+                    FORCE_MONSTERS = {}
+
+                    if Movement:InMapChecker(Movement:Get_TblZoneSubArea("Incarnam", "Cimetière")) then
+                        Movement:Fight()
+                    end
+                    Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Cimetière"))
+                elseif inventory:itemCount(1984) < 5 then -- Cendre éternelles
+                    MIN_MONSTERS = 1
+                    MAX_MONSTERS = 4
+
+                    FORCE_MONSTERS = {}
+
+                    if Movement:InMapChecker(Movement:Get_TblZoneSubArea("Incarnam", "Route des âmes")) then
+                        Movement:Fight()
+                    end
+                    Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Route des âmes"))
+                else
+                    Movement:LoadRoad(153354248)
+
+                    if map:currentMapId() == 153354248 then
+                        map:useById(490183, -1)
+                        craft:putItem(16524, 3)
+                        craft:putItem(1984, 5)
+                        craft:ready()
+                        global:leaveDialog()
+                    else
+                        Movement:MoveNext()
+                    end
+                end
+            end
+        },
+        ["FINISH"] = {
+            displayInfo = "Étape 4 / 4 -- Retourner voir Berb N'hin",
+            stepStartMapId = 153878787,
+            ["EXECUTE"] = function()
+                    Dialog:NpcDialogRequest(-20000)
+                    Dialog:NpcReply(25337)
+                    Dialog:NpcReply(25341)
             end
         }
     }
