@@ -2242,7 +2242,6 @@ Quest.QuestSolution["Le choix des armes"] = {
         },
         ["9889"] = {
             displayInfo = "Étape 2 / 4 -- Fabriquer x1 Hachette de bûcheron",
-            stepStartMapId = 153355264,
             ["EXECUTE"] = function()
                 if inventory:itemCount(16511) < 5 then -- Laine céleste
                     MIN_MONSTERS = 1
