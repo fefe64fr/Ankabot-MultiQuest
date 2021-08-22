@@ -88,7 +88,7 @@ function Quest:QuestManager()
     Player:AutoStats()
     Player:AutoStuff()
 
-    developer:suspendScriptUntilMultiplePackets({"QuestStepInfoMessage", "QuestObjectiveValidatedMessage", "QuestValidatedMessage", "QuestStartedMessage"}, 200, false)
+    developer:suspendScriptUntilMultiplePackets({"QuestValidatedMessage", "QuestStepInfoMessage", "QuestObjectiveValidatedMessage", "QuestStartedMessage"}, 0, false)
 
     if self.QuestValidated then
         Utils:Print("Quête terminée -- "..self.CurrentQuestToDo.name, "Quête")
@@ -140,7 +140,7 @@ function Quest:StepManager()
             self.StepInfoShowing = true
         end
 
-        developer:suspendScriptUntilMultiplePackets({"QuestStepInfoMessage", "QuestObjectiveValidatedMessage", "QuestValidatedMessage"}, 0, false)
+        developer:suspendScriptUntilMultiplePackets({"QuestStepInfoMessage", "QuestObjectiveValidatedMessage", "QuestStartedMessage", "QuestValidatedMessage"}, 0, false)
 
         if self.CurrentStepToDo.stepStartMapId ~= nil then
             Movement:LoadRoad(self.CurrentStepToDo.stepStartMapId)
@@ -155,12 +155,17 @@ function Quest:StepManager()
         end
     end
 
-    developer:suspendScriptUntilMultiplePackets({"QuestStepInfoMessage", "QuestObjectiveValidatedMessage", "QuestValidatedMessage", "QuestStartedMessage"}, 200, false)
+    developer:suspendScriptUntilMultiplePackets({"QuestStepInfoMessage", "QuestObjectiveValidatedMessage", "QuestStartedMessage", "QuestValidatedMessage"}, 0, false)
 
     if self.StepValidated and not self.QuestValidated then
         Utils:Print("Étape terminée -- "..self.CurrentStepToDo.displayInfo, "Étape")
         self.SelectedStepToDo = false
         self.StepValidated = false
+        Packet:PacketSender("QuestStepInfoRequestMessage", function(msg)
+            msg.questId = self.CurrentQuestToDo.questId
+            return msg
+        end)
+        developer:suspendScriptUntil("QuestStepInfoMessage", 0, false)
         self:EditQuestObjecttives(self.CurrentQuestToDo.questId, self.CurrentStepToDo.stepId, false)
         self.CurrentStepToDo = {}
         global:leaveDialog()
@@ -738,7 +743,6 @@ function CB_QuestListMessage(packet)
 end
 
 function CB_QuestStepInfo(packet)
-    --Utils:Print("Réception packet QuestStepInfo")
     if packet.infos.questId ~= nil then
         for _, vQuest in pairs(Quest.HistoricalQuestList.ActiveQuests) do
             if Utils:Equal(vQuest.questId, packet.infos.questId) then
