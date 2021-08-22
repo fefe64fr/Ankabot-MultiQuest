@@ -2,6 +2,7 @@
 
 Packet = {}
 Movement = {}
+Player = {}
 Quest = {}
 Dialog = {}
 Utils = {}
@@ -49,14 +50,43 @@ Quest.StepInfoShowing = false
 Quest.StepValidated = false
 Quest.QuestValidated = false
 
+function Quest:Initialisation()
+
+    Packet:PacketManager("quest") -- Abonnement au packet
+    Packet:PacketManager("dialog") -- Abonnement au packet
+    self:LoadHistoricalQuest() -- Charge les quête déja faite
+
+    while not Utils:Equal(Player.StastisticToUp, "Vitalite") and -- And ??? (or = bug)
+    not Utils:Equal(Player.StastisticToUp, "Agilite") and
+    not Utils:Equal(Player.StastisticToUp, "Force") and
+    not Utils:Equal(Player.StastisticToUp, "Intelligence") and
+    not Utils:Equal(Player.StastisticToUp, "Chance") and
+    not Utils:Equal(Player.StastisticToUp, "Sagesse") do
+        Player.StastisticToUp = global:input("Choix de la stat a monter, réponses possible (Vitalite, Agilite, Force, Intelligence, Chance, Sagesse) :")
+    end
+
+    while not Utils:Equal(Quest.QuestSolution["Drop pano Piou"].colorPano, "Vert") and -- And ??? (or = bug)
+    not Utils:Equal(Quest.QuestSolution["Drop pano Piou"].colorPano, "Jaune") and
+    not Utils:Equal(Quest.QuestSolution["Drop pano Piou"].colorPano, "Bleu") and
+    not Utils:Equal(Quest.QuestSolution["Drop pano Piou"].colorPano, "Rouge") and
+    not Utils:Equal(Quest.QuestSolution["Drop pano Piou"].colorPano, "Violet") and
+    not Utils:Equal(Quest.QuestSolution["Drop pano Piou"].colorPano, "Rose") do
+        Quest.QuestSolution["Drop pano Piou"].colorPano = global:input("Choix couleur pano piou, réponses possible (vert, jaune, bleu, rouge, violet, rose) :")
+    end
+
+    Player:ChangePanoToEquip("Piou", Quest.QuestSolution["Drop pano Piou"].colorPano)
+
+    self.Init = true
+end
+
 function Quest:QuestManager()
 
     if not self.Init then -- Initialisation
-        Packet:PacketManager("quest") -- Abonnement au packet
-        Packet:PacketManager("dialog") -- Abonnement au packet
-        self:LoadHistoricalQuest() -- Charge les quête déja faite
-        self.Init = true
+        self:Initialisation()
     end
+
+    Player:AutoStats()
+    Player:AutoStuff()
 
     developer:suspendScriptUntilMultiplePackets({"QuestStepInfoMessage", "QuestObjectiveValidatedMessage", "QuestValidatedMessage", "QuestStartedMessage"}, 200, false)
 
@@ -151,7 +181,7 @@ end
 
 function Quest:SelectQuestToDo()
     for kQuestName, vQuestSolution in pairs(self.QuestSolution) do
-        if not self:CheckIfQuestFinish(vQuestSolution.questId) and not self:CheckIfRequiredFinishedQuest(vQuestSolution.requiredFinishedQuest) then
+        if not self:CheckIfQuestFinish(vQuestSolution.questId) and not self:CheckIfRequiredFinishedQuest(vQuestSolution.requiredFinishedQuest)  then
             local canSelect = true
 
             if vQuestSolution.minLevel ~= nil then
@@ -214,6 +244,8 @@ function Quest:GetCurrentStep()
                             --Utils:Print(vObjecttives.objecttiveId.." getcurrent")
                             if self:CheckIfStepExist(vObjecttives.objecttiveId) then
                                 return vObjecttives.objecttiveId
+                            else
+                                Utils:Print("Le step "..vObjecttives.objecttiveId.." n'éxiste pas dans stepSolution", "GetCurrentStep", "error")
                             end
                         end
                     end
@@ -268,10 +300,12 @@ function Quest:CheckIfStepExist(stepId)
 end
 
 function Quest:AddActiveQuest(questId, objecttives)
-    local vQuest = {}
-    vQuest.questId = questId
-    vQuest.objecttives = objecttives or nil
-    table.insert(self.HistoricalQuestList.ActiveQuests, vQuest)
+    if not self:CheckIfQuestLaunched(questId) then
+        local vQuest = {}
+        vQuest.questId = questId
+        vQuest.objecttives = objecttives or nil
+        table.insert(self.HistoricalQuestList.ActiveQuests, vQuest)
+    end
 end
 
 function Quest:EditQuestObjecttives(questId, stepId, val)
@@ -295,6 +329,119 @@ function Quest:EditQuestObjecttives(questId, stepId, val)
             break
         end
     end
+end
+
+function Quest:DeleteActiveQuest(questId)
+    table.insert(self.HistoricalQuestList.FinishedQuestsIds, questId)
+
+    for i = Utils:LenghtOfTable(self.HistoricalQuestList.ActiveQuests), 1, -1 do
+        if self.HistoricalQuestList.ActiveQuests[i].questId == questId then
+            table.remove(self.HistoricalQuestList.ActiveQuests, i)
+            return true
+        end
+    end
+    return false
+end
+
+-- Player
+
+Player.StastisticToUp = ""
+
+Player.ItemsToEquipInfo = {
+    ["Coiffe"] = { gid = 8246, lvl = 8, pos = 6 },
+    ["Cape"] = { gid = 8233, lvl = 10, pos = 7 },
+    ["Amulette"] = { gid = 8216, lvl = 7, pos = 0 },
+    ["Anneau n°1"] = { gid = 2475, lvl = 8, pos = 2 },
+    ["Anneau n°2"] = { gid = 2475, lvl = 12, pos = 4 },
+    ["Ceinture"] = { gid = 8240, lvl = 9, pos = 3 },
+    ["Bottes"] = { gid = 8228, lvl = 11, pos = 5 }
+}
+
+function Player:ChangePanoToEquip(panoName, subPanoName)
+    local editItemToEquip = function(vPano)
+        for kItem, _ in pairs(self.ItemsToEquipInfo) do
+            for kItemToChange, vItemToChange in pairs(vPano) do
+                if Utils:Equal(kItem, kItemToChange) then
+                    Player.ItemsToEquipInfo[kItemToChange] = vItemToChange
+                end
+            end
+        end
+    end
+
+
+    for kPanoName, vPano in pairs(self.PanoInfo) do
+        if Utils:Equal(kPanoName, panoName) then
+            if subPanoName ~= nil then
+                for kSubPanoName, vSubPano in pairs(vPano) do
+                    if Utils:Equal(kSubPanoName, subPanoName) then
+                        editItemToEquip(vSubPano)
+                        break
+                    end
+                end
+                break
+            else
+                editItemToEquip(vPano)
+                break
+            end
+        end
+    end
+end
+
+function Player:AutoStats()
+    local availableStatsPoint = character:statsPoint()
+
+    local keyFunc = {
+        ["Vitalite"] = function(amount)
+            character:upgradeVitality(amount)
+        end,
+        ["Agilite"] = function(amount)
+            character:upgradeAgility(amount)
+        end,
+        ["Chance"] = function(amount)
+            character:upgradeChance(amount)
+        end,
+        ["Intelligence"] = function(amount)
+            character:upgradeIntelligence(amount)
+        end,
+        ["Force"] = function(amount)
+            character:upgradeStrenght(amount)
+        end,
+        ["Sagesse"] = function(amount)
+            character:upgradeWisdom(amount)
+        end,
+    }
+
+    if availableStatsPoint > 0 then
+        for kStat, vFunc in pairs(keyFunc) do
+            if Utils:Equal(kStat, self.StastisticToUp) then
+                vFunc(availableStatsPoint)
+                break
+            end
+        end
+    end
+end
+
+function Player:AutoStuff()
+    for _, v in pairs(self.ItemsToEquipInfo) do
+        if not self:IsItEquipped(v.gid) and inventory:itemCount(v.gid) > 0 and character:level() >= v.lvl then
+            --Utils:Print("Try equip "..inventory:itemNameId(v.gid), "AutoStuff")
+            if not inventory:equipItem(v.gid, v.pos) then
+                Utils:Print("Impossible d'équiper l'item "..inventory:itemNameId(v.gid), "AutoStuff", "error")
+            end
+        end
+    end
+end
+
+function Player:IsItEquipped(gid)
+    local inventoryContent = inventory:inventoryContent()
+
+    for _, v in pairs(inventoryContent) do
+        if v.objecttGID == gid and v.position ~= 63 then
+            return true
+        end
+    end
+
+    return false
 end
 
 -- Packet
@@ -447,13 +594,30 @@ end
 
 function Movement:Fight()
     if character:lifePointsP() < 90 then
-        Utils:Print("Fight", "Régénération des points de vie avant combat")
+        Utils:Print("Régénération des points de vie avant combat", "Fight")
 
         while character:lifePointsP() < 90 do
             global:delay(1)
         end
     end
     map:fight()
+end
+
+function Movement:GoAstrub()
+    if Utils:Equal(map:currentArea(), "Incarnam") then
+        Movement:LoadRoad(153880835)
+        local possibleIdReply = {
+            36982,
+            36980
+        }
+
+        if map:currentMapId() == 153880835 then
+            Dialog:NpcDialogRequest(-20001)
+            Dialog:NpcReplyUntilLeave(possibleIdReply)
+        else
+            Movement:MoveNext()
+        end
+    end
 end
 
 -- Dialog
@@ -2323,6 +2487,259 @@ Quest.QuestSolution["Le choix des armes"] = {
     }
 }
 
+Quest.QuestSolution["Drop pano Piou"] = {
+    questId = 0000000001,
+    minLevel = 12,
+    colorPano = "",
+    idPano = {
+        ["Coiffe"] = {
+            ["Rouge"] = 8243,
+            ["Bleu"] = 8244,
+            ["Violet"] = 8245,
+            ["Vert"] = 8246,
+            ["Jaune"] = 8247,
+            ["Rose"] = 8248
+        },
+        ["Cape"] = {
+            ["Rouge"] = 8231,
+            ["Bleu"] = 8232,
+            ["Violet"] = 8234,
+            ["Vert"] = 8233,
+            ["Jaune"] = 8236,
+            ["Rose"] = 8235
+        },
+        ["Ceinture"] = {
+            ["Rouge"] = 8237,
+            ["Bleu"] = 8238,
+            ["Violet"] = 8239,
+            ["Vert"] = 8240,
+            ["Jaune"] = 8241,
+            ["Rose"] = 8242
+        },
+        ["Bottes"] = {
+            ["Rouge"] = 8225,
+            ["Bleu"] = 8226,
+            ["Violet"] = 8227,
+            ["Vert"] = 8228,
+            ["Jaune"] = 8229,
+            ["Rose"] = 8230
+        },
+        ["Anneau"] = {
+            ["Rouge"] = 8219,
+            ["Bleu"] = 8220,
+            ["Violet"] = 8221,
+            ["Vert"] = 8222,
+            ["Jaune"] = 8223,
+            ["Rose"] = 8234
+        },
+        ["Amulette"] = {
+            ["Rouge"] = 8213,
+            ["Bleu"] = 8214,
+            ["Violet"] = 8215,
+            ["Vert"] = 8216,
+            ["Jaune"] = 8217,
+            ["Rose"] = 8218
+        }
+    },
+    idMonsters = {
+        ["Rouge"] = 489,
+        ["Bleu"] = 491,
+        ["Violet"] = 236,
+        ["Vert"] = 490,
+        ["Jaune"] = 493,
+        ["Rose"] = 492
+    },
+    getIdPano = function(item)
+        for kItem, vTblId in pairs(Quest.CurrentQuestToDo.idPano) do
+            if Utils:Equal(kItem, item) then
+                for kColor, id in pairs(vTblId) do
+                    if Utils:Equal(kColor, Quest.CurrentQuestToDo.colorPano) then
+                        return id
+                    end
+                end
+            end
+        end
+    end,
+    getIdMonster = function()
+        for kColor, id in pairs(Quest.CurrentQuestToDo.idMonsters) do
+            if Utils:Equal(kColor, Quest.CurrentQuestToDo.colorPano) then
+                return id
+            end
+        end
+    end,
+    stepSolution = { 
+        ["START"] = {
+            displayInfo = "Étape 0 / 6 -- Start",
+            ["EXECUTE"] = function()
+                local objecttives = {
+                    {
+                        objecttiveId = 1,
+                        objecttiveStatus = true
+                    },
+                    {
+                        objecttiveId = 2,
+                        objecttiveStatus = true
+                    },
+                    {
+                        objecttiveId = 3,
+                        objecttiveStatus = true
+                    },
+                    {
+                        objecttiveId = 4,
+                        objecttiveStatus = true
+                    },
+                    {
+                        objecttiveId = 5,
+                        objecttiveStatus = true
+                    },
+                    {
+                        objecttiveId = 6,
+                        objecttiveStatus = true
+                    }
+                }
+
+                local tblPanoId = {}
+
+                for item, _ in pairs(Quest.CurrentQuestToDo.idPano) do
+                    table.insert(tblPanoId, Quest.CurrentQuestToDo.getIdPano(item))
+                end
+
+                local isAlreadyStuff = function(tbl)
+                    for _, v in pairs(tbl) do
+                        if inventory:itemCount(v) < 1 then
+                            return false
+                        end
+                    end
+                    return true
+                end
+
+                if isAlreadyStuff(tblPanoId) then
+                    Quest.QuestValidated = true
+                else
+                    Quest:AddActiveQuest(0000000001, objecttives)
+                    Movement:GoAstrub()
+                    if Utils:Equal(map:currentArea(), "Astrub") then
+                        Quest.StepValidated = true
+                    end
+                end
+            end
+        },
+        ["1"] = {
+            displayInfo = "Étape 1 / 6 -- Drop cape Piou",
+            ["EXECUTE"] = function()
+                local tblMapId = Movement:Get_TblZoneSubArea("Astrub", "Cité d'Astrub")
+
+                MIN_MONSTERS = 1
+                MAX_MONSTERS = 2
+
+                FORCE_MONSTERS = {Quest.CurrentQuestToDo.getIdMonster()}
+
+                if inventory:itemCount(Quest.CurrentQuestToDo.getIdPano("Cape")) > 0 then
+                    Quest:EditQuestObjecttives(0000000001, 1, false)
+                    Quest.StepValidated = true
+                else
+                    Movement:Fight()
+                    Movement:RoadZone(tblMapId)
+                end
+            end
+        },
+        ["2"] = {
+            displayInfo = "Étape 2 / 6 -- Drop coiffe Piou",
+            ["EXECUTE"] = function()
+                local tblMapId = Movement:Get_TblZoneSubArea("Astrub", "Cité d'Astrub")
+
+                MIN_MONSTERS = 1
+                MAX_MONSTERS = 2
+
+                FORCE_MONSTERS = {Quest.CurrentQuestToDo.getIdMonster()}
+
+                if inventory:itemCount(Quest.CurrentQuestToDo.getIdPano("Coiffe")) > 0 then
+                    Quest:EditQuestObjecttives(0000000001, 2, false)
+                    Quest.StepValidated = true
+                else
+                    Movement:Fight()
+                    Movement:RoadZone(tblMapId)
+                end
+            end
+        }, 
+        ["3"] = {
+            displayInfo = "Étape 3 / 6 -- Drop anneau Piou",
+            ["EXECUTE"] = function()
+                local tblMapId = Movement:Get_TblZoneSubArea("Astrub", "Cité d'Astrub")
+
+                MIN_MONSTERS = 1
+                MAX_MONSTERS = 2
+
+                FORCE_MONSTERS = {Quest.CurrentQuestToDo.getIdMonster()}
+
+                if inventory:itemCount(Quest.CurrentQuestToDo.getIdPano("Anneau")) > 0 then
+                    Quest:EditQuestObjecttives(0000000001, 3, false)
+                    Quest.StepValidated = true
+                else
+                    Movement:Fight()
+                    Movement:RoadZone(tblMapId)
+                end
+            end
+        }, 
+        ["4"] = {
+            displayInfo = "Étape 4 / 6 -- Drop bottes Piou",
+            ["EXECUTE"] = function()
+                local tblMapId = Movement:Get_TblZoneSubArea("Astrub", "Cité d'Astrub")
+
+                MIN_MONSTERS = 1
+                MAX_MONSTERS = 2
+
+                FORCE_MONSTERS = {Quest.CurrentQuestToDo.getIdMonster()}
+
+                if inventory:itemCount(Quest.CurrentQuestToDo.getIdPano("Bottes")) > 0 then
+                    Quest:EditQuestObjecttives(0000000001, 4, false)
+                    Quest.StepValidated = true
+                else
+                    Movement:Fight()
+                    Movement:RoadZone(tblMapId)
+                end
+            end
+        },       
+        ["5"] = {
+            displayInfo = "Étape 5 / 6 -- Drop ceinture Piou",
+            ["EXECUTE"] = function()
+                local tblMapId = Movement:Get_TblZoneSubArea("Astrub", "Cité d'Astrub")
+
+                MIN_MONSTERS = 1
+                MAX_MONSTERS = 2
+
+                FORCE_MONSTERS = {Quest.CurrentQuestToDo.getIdMonster()}
+
+                if inventory:itemCount(Quest.CurrentQuestToDo.getIdPano("Ceinture")) > 0 then
+                    Quest:EditQuestObjecttives(0000000001, 5, false)
+                    Quest.StepValidated = true
+                else
+                    Movement:Fight()
+                    Movement:RoadZone(tblMapId)
+                end
+            end
+        },       
+        ["6"] = {
+            displayInfo = "Étape 6 / 6 -- Drop amulette Piou",
+            ["EXECUTE"] = function()
+                local tblMapId = Movement:Get_TblZoneSubArea("Astrub", "Cité d'Astrub")
+
+                MIN_MONSTERS = 1
+                MAX_MONSTERS = 2
+
+                FORCE_MONSTERS = {Quest.CurrentQuestToDo.getIdMonster()}
+
+                if inventory:itemCount(Quest.CurrentQuestToDo.getIdPano("Amulette")) > 0 then
+                    Quest.QuestValidated = true
+                else
+                    Movement:Fight()
+                    Movement:RoadZone(tblMapId)
+                end
+            end
+        }
+    }
+}
+
 -- Zone area mapId
 
 Movement.ZoneAreaMapId = {
@@ -2454,6 +2871,61 @@ Movement.ZoneAreaMapId = {
             191106052,
             191105026,
             191104002
+        }
+    }
+}
+
+-- Pano info
+
+Player.PanoInfo = {
+    ["Piou"] = {
+        ["Vert"] = {
+            ["Coiffe"] = { gid = 8246, lvl = 8, pos = 6 },
+            ["Cape"] = { gid = 8233, lvl = 10, pos = 7 },
+            ["Amulette"] = { gid = 8216, lvl = 7, pos = 0 },
+            ["Anneau n°1"] = { gid = 8222, lvl = 12, pos = 2 },
+            ["Ceinture"] = { gid = 8240, lvl = 9, pos = 3 },
+            ["Bottes"] = { gid = 8228, lvl = 11, pos = 5 }
+        },
+        ["Rouge"] = {
+            ["Coiffe"] = { gid = 8243, lvl = 12, pos = 6 },
+            ["Cape"] = { gid = 8231, lvl = 8, pos = 7 },
+            ["Amulette"] = { gid = 8213, lvl = 11, pos = 0 },
+            ["Anneau n°1"] = { gid = 8219, lvl = 10, pos = 2 },
+            ["Ceinture"] = { gid = 8237, lvl = 7, pos = 3 },
+            ["Bottes"] = { gid = 8225, lvl = 9, pos = 5 }
+        },
+        ["Bleu"] = {
+            ["Coiffe"] = { gid = 8244, lvl = 11, pos = 6 },
+            ["Cape"] = { gid = 8232, lvl = 7, pos = 7 },
+            ["Amulette"] = { gid = 8214, lvl = 10, pos = 0 },
+            ["Anneau n°1"] = { gid = 8220, lvl = 9, pos = 2 },
+            ["Ceinture"] = { gid = 8238, lvl = 12, pos = 3 },
+            ["Bottes"] = { gid = 8226, lvl = 8, pos = 5 }
+        },
+        ["Jaune"] = {
+            ["Coiffe"] = { gid = 8247, lvl = 7, pos = 6 },
+            ["Cape"] = { gid = 8236, lvl = 9, pos = 7 },
+            ["Amulette"] = { gid = 8217, lvl = 12, pos = 0 },
+            ["Anneau n°1"] = { gid = 8223, lvl = 11, pos = 2 },
+            ["Ceinture"] = { gid = 8241, lvl = 8, pos = 3 },
+            ["Bottes"] = { gid = 8229, lvl = 10, pos = 5 }
+        },
+        ["Rose"] = {
+            ["Coiffe"] = { gid = 8248, lvl = 9, pos = 6 },
+            ["Cape"] = { gid = 8235, lvl = 11, pos = 7 },
+            ["Amulette"] = { gid = 8218, lvl = 8, pos = 0 },
+            ["Anneau n°1"] = { gid = 8234, lvl = 7, pos = 2 },
+            ["Ceinture"] = { gid = 8242, lvl = 10, pos = 3 },
+            ["Bottes"] = { gid = 8230, lvl = 12, pos = 5 }
+        },
+        ["Violet"] = {
+            ["Coiffe"] = { gid = 8245, lvl = 10, pos = 6 },
+            ["Cape"] = { gid = 8234, lvl = 12, pos = 7 },
+            ["Amulette"] = { gid = 8215, lvl = 9, pos = 0 },
+            ["Anneau n°1"] = { gid = 8221, lvl = 8, pos = 2 },
+            ["Ceinture"] = { gid = 8239, lvl = 11, pos = 3 },
+            ["Bottes"] = { gid = 8227, lvl = 7, pos = 5 }
         }
     }
 }
