@@ -603,6 +603,23 @@ function Movement:Fight()
     map:fight()
 end
 
+function Movement:EditFightConfig(minMonsters, maxMonsters, forceMonsters, forbiddenMonsters)
+    MIN_MONSTERS = minMonsters
+    MAX_MONSTERS = maxMonsters
+
+    if forceMonsters ~= nil then
+        FORCE_MONSTERS = forceMonsters
+    else
+        FORCE_MONSTERS = {}
+    end
+
+    if forbiddenMonsters ~= nil then
+        FORBIDDEN_MONSTERS = forbiddenMonsters
+    else
+        FORBIDDEN_MONSTERS = {}
+    end
+end
+
 function Movement:GoAstrub()
     if Utils:Equal(map:currentArea(), "Incarnam") then
         Movement:LoadRoad(153880835)
@@ -862,6 +879,241 @@ function Utils:ShuffleTbl(tbl)
 end
 
 -- Quest Solution
+
+Quest.QuestSolution["Drop pano Piou"] = {
+    questId = 0000000001,
+    minLevel = 12,
+    colorPano = "",
+    idPano = {
+        ["Coiffe"] = {
+            ["Rouge"] = 8243,
+            ["Bleu"] = 8244,
+            ["Violet"] = 8245,
+            ["Vert"] = 8246,
+            ["Jaune"] = 8247,
+            ["Rose"] = 8248
+        },
+        ["Cape"] = {
+            ["Rouge"] = 8231,
+            ["Bleu"] = 8232,
+            ["Violet"] = 8234,
+            ["Vert"] = 8233,
+            ["Jaune"] = 8236,
+            ["Rose"] = 8235
+        },
+        ["Ceinture"] = {
+            ["Rouge"] = 8237,
+            ["Bleu"] = 8238,
+            ["Violet"] = 8239,
+            ["Vert"] = 8240,
+            ["Jaune"] = 8241,
+            ["Rose"] = 8242
+        },
+        ["Bottes"] = {
+            ["Rouge"] = 8225,
+            ["Bleu"] = 8226,
+            ["Violet"] = 8227,
+            ["Vert"] = 8228,
+            ["Jaune"] = 8229,
+            ["Rose"] = 8230
+        },
+        ["Anneau"] = {
+            ["Rouge"] = 8219,
+            ["Bleu"] = 8220,
+            ["Violet"] = 8221,
+            ["Vert"] = 8222,
+            ["Jaune"] = 8223,
+            ["Rose"] = 8234
+        },
+        ["Amulette"] = {
+            ["Rouge"] = 8213,
+            ["Bleu"] = 8214,
+            ["Violet"] = 8215,
+            ["Vert"] = 8216,
+            ["Jaune"] = 8217,
+            ["Rose"] = 8218
+        }
+    },
+    idMonsters = {
+        ["Rouge"] = 489,
+        ["Bleu"] = 491,
+        ["Violet"] = 236,
+        ["Vert"] = 490,
+        ["Jaune"] = 493,
+        ["Rose"] = 492
+    },
+    getIdPano = function(item)
+        for kItem, vTblId in pairs(Quest.CurrentQuestToDo.idPano) do
+            if Utils:Equal(kItem, item) then
+                for kColor, id in pairs(vTblId) do
+                    if Utils:Equal(kColor, Quest.CurrentQuestToDo.colorPano) then
+                        return id
+                    end
+                end
+            end
+        end
+    end,
+    getIdMonster = function()
+        for kColor, id in pairs(Quest.CurrentQuestToDo.idMonsters) do
+            if Utils:Equal(kColor, Quest.CurrentQuestToDo.colorPano) then
+                return id
+            end
+        end
+    end,
+    stepSolution = { 
+        ["START"] = {
+            displayInfo = "Étape 0 / 6 -- Start",
+            ["EXECUTE"] = function()
+                local objecttives = {
+                    {
+                        objecttiveId = 1,
+                        objecttiveStatus = true
+                    },
+                    {
+                        objecttiveId = 2,
+                        objecttiveStatus = true
+                    },
+                    {
+                        objecttiveId = 3,
+                        objecttiveStatus = true
+                    },
+                    {
+                        objecttiveId = 4,
+                        objecttiveStatus = true
+                    },
+                    {
+                        objecttiveId = 5,
+                        objecttiveStatus = true
+                    },
+                    {
+                        objecttiveId = 6,
+                        objecttiveStatus = true
+                    }
+                }
+
+                local tblPanoId = {}
+
+                for item, _ in pairs(Quest.CurrentQuestToDo.idPano) do
+                    table.insert(tblPanoId, Quest.CurrentQuestToDo.getIdPano(item))
+                end
+
+                local isAlreadyStuff = function(tbl)
+                    for _, v in pairs(tbl) do
+                        if inventory:itemCount(v) < 1 then
+                            return false
+                        end
+                    end
+                    return true
+                end
+
+                if isAlreadyStuff(tblPanoId) then
+                    Quest.QuestValidated = true
+                else
+                    Quest:AddActiveQuest(0000000001, objecttives)
+                    Movement:GoAstrub()
+                    if Utils:Equal(map:currentArea(), "Astrub") then
+                        Quest.StepValidated = true
+                    end
+                end
+            end
+        },
+        ["1"] = {
+            displayInfo = "Étape 1 / 6 -- Drop cape Piou",
+            ["EXECUTE"] = function()
+                local tblMapId = Movement:Get_TblZoneSubArea("Astrub", "Cité d'Astrub")
+
+                Movement:EditFightConfig(1, math.ceil(character:maxLifePoints() / 80), {Quest.CurrentQuestToDo.getIdMonster()})
+
+                if inventory:itemCount(Quest.CurrentQuestToDo.getIdPano("Cape")) > 0 then
+                    Quest:EditQuestObjecttives(0000000001, 1, false)
+                    Quest.StepValidated = true
+                else
+                    Movement:Fight()
+                    Movement:RoadZone(tblMapId)
+                end
+            end
+        },
+        ["2"] = {
+            displayInfo = "Étape 2 / 6 -- Drop coiffe Piou",
+            ["EXECUTE"] = function()
+                local tblMapId = Movement:Get_TblZoneSubArea("Astrub", "Cité d'Astrub")
+
+                Movement:EditFightConfig(1, math.ceil(character:maxLifePoints() / 80), {Quest.CurrentQuestToDo.getIdMonster()})
+
+                if inventory:itemCount(Quest.CurrentQuestToDo.getIdPano("Coiffe")) > 0 then
+                    Quest:EditQuestObjecttives(0000000001, 2, false)
+                    Quest.StepValidated = true
+                else
+                    Movement:Fight()
+                    Movement:RoadZone(tblMapId)
+                end
+            end
+        },
+        ["3"] = {
+            displayInfo = "Étape 3 / 6 -- Drop anneau Piou",
+            ["EXECUTE"] = function()
+                local tblMapId = Movement:Get_TblZoneSubArea("Astrub", "Cité d'Astrub")
+
+                Movement:EditFightConfig(1, math.ceil(character:maxLifePoints() / 80), {Quest.CurrentQuestToDo.getIdMonster()})
+
+                if inventory:itemCount(Quest.CurrentQuestToDo.getIdPano("Anneau")) > 0 then
+                    Quest:EditQuestObjecttives(0000000001, 3, false)
+                    Quest.StepValidated = true
+                else
+                    Movement:Fight()
+                    Movement:RoadZone(tblMapId)
+                end
+            end
+        },
+        ["4"] = {
+            displayInfo = "Étape 4 / 6 -- Drop bottes Piou",
+            ["EXECUTE"] = function()
+                local tblMapId = Movement:Get_TblZoneSubArea("Astrub", "Cité d'Astrub")
+
+                Movement:EditFightConfig(1, math.ceil(character:maxLifePoints() / 80), {Quest.CurrentQuestToDo.getIdMonster()})
+
+                if inventory:itemCount(Quest.CurrentQuestToDo.getIdPano("Bottes")) > 0 then
+                    Quest:EditQuestObjecttives(0000000001, 4, false)
+                    Quest.StepValidated = true
+                else
+                    Movement:Fight()
+                    Movement:RoadZone(tblMapId)
+                end
+            end
+        },
+        ["5"] = {
+            displayInfo = "Étape 5 / 6 -- Drop ceinture Piou",
+            ["EXECUTE"] = function()
+                local tblMapId = Movement:Get_TblZoneSubArea("Astrub", "Cité d'Astrub")
+
+                Movement:EditFightConfig(1, math.ceil(character:maxLifePoints() / 80), {Quest.CurrentQuestToDo.getIdMonster()})
+
+                if inventory:itemCount(Quest.CurrentQuestToDo.getIdPano("Ceinture")) > 0 then
+                    Quest:EditQuestObjecttives(0000000001, 5, false)
+                    Quest.StepValidated = true
+                else
+                    Movement:Fight()
+                    Movement:RoadZone(tblMapId)
+                end
+            end
+        },
+        ["6"] = {
+            displayInfo = "Étape 6 / 6 -- Drop amulette Piou",
+            ["EXECUTE"] = function()
+                local tblMapId = Movement:Get_TblZoneSubArea("Astrub", "Cité d'Astrub")
+
+                Movement:EditFightConfig(1, math.ceil(character:maxLifePoints() / 80), {Quest.CurrentQuestToDo.getIdMonster()})
+
+                if inventory:itemCount(Quest.CurrentQuestToDo.getIdPano("Amulette")) > 0 then
+                    Quest.QuestValidated = true
+                else
+                    Movement:Fight()
+                    Movement:RoadZone(tblMapId)
+                end
+            end
+        }
+    }
+}
 
 Quest.QuestSolution["L'anneau de tous les dangers"] = {
     questId = 1629,
@@ -1371,11 +1623,7 @@ Quest.QuestSolution["Champs de bataille"] = {
         ["9832"] = {
             displayInfo = "Étape 1 / 5 -- Combattre x1 Tofu chimérique",
             ["EXECUTE"] = function()
-                MIN_MONSTERS = 1
-                MAX_MONSTERS = 2
-
-                FORCE_MONSTERS = {970}
-
+                Movement:EditFightConfig(1, 2, {970})
                 Movement:Fight()
                 Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Champs"))
             end
@@ -1383,11 +1631,7 @@ Quest.QuestSolution["Champs de bataille"] = {
         ["9833"] = {
             displayInfo = "Étape 2 / 5 -- Combattre x1 Pissenlit Miroitant",
             ["EXECUTE"] = function()
-                MIN_MONSTERS = 1
-                MAX_MONSTERS = 2
-
-                FORCE_MONSTERS = {979}
-
+                Movement:EditFightConfig(1, 2, {979})
                 Movement:Fight()
                 Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Champs"))
             end
@@ -1395,11 +1639,7 @@ Quest.QuestSolution["Champs de bataille"] = {
         ["9834"] = {
             displayInfo = "Étape 3 / 5 -- Combattre x1 Rose Vaporeuse",
             ["EXECUTE"] = function()
-                MIN_MONSTERS = 1
-                MAX_MONSTERS = 2
-
-                FORCE_MONSTERS = {980}
-
+                Movement:EditFightConfig(1, 2, {980})
                 Movement:Fight()
                 Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Champs"))
             end
@@ -1407,11 +1647,7 @@ Quest.QuestSolution["Champs de bataille"] = {
         ["9835"] = {
             displayInfo = "Étape 4 / 5 -- Combattre x1 Tournesol Nébuleux",
             ["EXECUTE"] = function()
-                MIN_MONSTERS = 1
-                MAX_MONSTERS = 2
-
-                FORCE_MONSTERS = {981}
-
+                Movement:EditFightConfig(1, 2, {981})
                 Movement:Fight()
                 Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Champs"))
             end
@@ -1443,11 +1679,7 @@ Quest.QuestSolution["Coup d'épée dans l'eau"] = {
         ["9837"] = {
             displayInfo = "Étape 1 / 4 -- Combattre x2 Petit Gloot",
             ["EXECUTE"] = function()
-                MIN_MONSTERS = 1
-                MAX_MONSTERS = 2
-
-                FORCE_MONSTERS = {4109}
-
+                Movement:EditFightConfig(1, 2, {4109})
                 Movement:Fight()
                 Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Lac"))
             end
@@ -1455,11 +1687,7 @@ Quest.QuestSolution["Coup d'épée dans l'eau"] = {
         ["9838"] = {
             displayInfo = "Étape 2 / 4 -- Combattre x2 Plikplok",
             ["EXECUTE"] = function()
-                MIN_MONSTERS = 1
-                MAX_MONSTERS = 2
-
-                FORCE_MONSTERS = {4108}
-
+                Movement:EditFightConfig(1, 2, {4108})
                 Movement:Fight()
                 Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Lac"))
             end
@@ -1467,11 +1695,7 @@ Quest.QuestSolution["Coup d'épée dans l'eau"] = {
         ["9839"] = {
             displayInfo = "Étape 3 / 4 -- Combattre x1 Grand Splatch",
             ["EXECUTE"] = function()
-                MIN_MONSTERS = 1
-                MAX_MONSTERS = 2
-
-                FORCE_MONSTERS = {4110}
-
+                Movement:EditFightConfig(1, 2, {4110})
                 Movement:Fight()
                 Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Lac"))
             end
@@ -1504,11 +1728,7 @@ Quest.QuestSolution["Décime-moi des bouftous"] = {
         ["9841"] = {
             displayInfo = "Étape 1 / 5 -- Combattre x1 Boufton Pâlichon",
             ["EXECUTE"] = function()
-                MIN_MONSTERS = 1
-                MAX_MONSTERS = 2
-
-                FORCE_MONSTERS = {972}
-
+                Movement:EditFightConfig(1, 2, {972})
                 Movement:Fight()
                 Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Pâturages"))
             end
@@ -1516,11 +1736,7 @@ Quest.QuestSolution["Décime-moi des bouftous"] = {
         ["9842"] = {
             displayInfo = "Étape 2 / 5 -- Combattre x1 Boufton Orageux",
             ["EXECUTE"] = function()
-                MIN_MONSTERS = 1
-                MAX_MONSTERS = 2
-
-                FORCE_MONSTERS = {973}
-
+                Movement:EditFightConfig(1, 2, {973})
                 Movement:Fight()
                 Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Pâturages"))
             end
@@ -1528,11 +1744,7 @@ Quest.QuestSolution["Décime-moi des bouftous"] = {
         ["9843"] = {
             displayInfo = "Étape 3 / 5 -- Combattre x1 Bouftou Nuageux",
             ["EXECUTE"] = function()
-                MIN_MONSTERS = 1
-                MAX_MONSTERS = 2
-
-                FORCE_MONSTERS = {971}
-
+                Movement:EditFightConfig(1, 2, {971})
                 Movement:Fight()
                 Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Pâturages"))
             end
@@ -1540,11 +1752,7 @@ Quest.QuestSolution["Décime-moi des bouftous"] = {
         ["9844"] = {
             displayInfo = "Étape 4 / 5 -- Combattre x1 Bouftor Éthéré",
             ["EXECUTE"] = function()
-                MIN_MONSTERS = 1
-                MAX_MONSTERS = 2
-
-                FORCE_MONSTERS = {984}
-
+                Movement:EditFightConfig(1, 2, {984})
                 Movement:Fight()
                 Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Pâturages"))
             end
@@ -1576,11 +1784,7 @@ Quest.QuestSolution["Chasse aux chapardams"] = {
         ["9846"] = {
             displayInfo = "Étape 1 / 4 -- Combattre x2 Ronronchon",
             ["EXECUTE"] = function()
-                MIN_MONSTERS = 1
-                MAX_MONSTERS = 2
-
-                FORCE_MONSTERS = {4105}
-
+                Movement:EditFightConfig(1, 2, {4105})
                 Movement:Fight()
                 Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Forêt"))
             end
@@ -1588,11 +1792,7 @@ Quest.QuestSolution["Chasse aux chapardams"] = {
         ["9847"] = {
             displayInfo = "Étape 2 / 4 -- Combattre x2 Tigrimas",
             ["EXECUTE"] = function()
-                MIN_MONSTERS = 1
-                MAX_MONSTERS = 2
-
-                FORCE_MONSTERS = {4106}
-
+                Movement:EditFightConfig(1, 2, {4106})
                 Movement:Fight()
                 Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Forêt"))
             end
@@ -1600,11 +1800,7 @@ Quest.QuestSolution["Chasse aux chapardams"] = {
         ["9848"] = {
             displayInfo = "Étape 3 / 4 -- Combattre x2 Chakrobat",
             ["EXECUTE"] = function()
-                MIN_MONSTERS = 1
-                MAX_MONSTERS = 2
-
-                FORCE_MONSTERS = {982}
-
+                Movement:EditFightConfig(1, 2, {982})
                 Movement:Fight()
                 Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Forêt"))
             end
@@ -1674,11 +1870,7 @@ Quest.QuestSolution["Des chafers qui marchent"] = {
         ["9852"] = {
             displayInfo = "Étape 1 / 8 -- Combattre x1 Chafer débutant",
             ["EXECUTE"] = function()
-                MIN_MONSTERS = 1
-                MAX_MONSTERS = 2
-
-                FORCE_MONSTERS = {4046}
-
+                Movement:EditFightConfig(1, 2, {4046})
                 Movement:Fight()
                 Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Cimetière"))
             end
@@ -1686,11 +1878,7 @@ Quest.QuestSolution["Des chafers qui marchent"] = {
         ["9853"] = {
             displayInfo = "Étape 2 / 8 -- Combattre x1 Chafer furtif",
             ["EXECUTE"] = function()
-                MIN_MONSTERS = 1
-                MAX_MONSTERS = 2
-
-                FORCE_MONSTERS = {4047}
-
+                Movement:EditFightConfig(1, 2, {4047})
                 Movement:Fight()
                 Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Cimetière"))
             end
@@ -1698,12 +1886,7 @@ Quest.QuestSolution["Des chafers qui marchent"] = {
         ["9854"] = {
             displayInfo = "Étape 3 / 8 -- Combattre x1 Chafer éclaireur",
             ["EXECUTE"] = function()
-                MIN_MONSTERS = 1
-                MAX_MONSTERS = 2
-
-                FORCE_MONSTERS = {4048}
-
-
+                Movement:EditFightConfig(1, 2, {4048})
                 Movement:Fight()
                 Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Cimetière"))
             end
@@ -1711,11 +1894,7 @@ Quest.QuestSolution["Des chafers qui marchent"] = {
         ["9855"] = {
             displayInfo = "Étape 4 / 8 -- Combattre x1 Chafer Piquier",
             ["EXECUTE"] = function()
-                MIN_MONSTERS = 1
-                MAX_MONSTERS = 2
-
-                FORCE_MONSTERS = {4049}
-
+                Movement:EditFightConfig(1, 2, {4049})
                 Movement:Fight()
                 Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Cimetière"))
             end
@@ -2144,11 +2323,7 @@ Quest.QuestSolution["Boune un jour, boune toujours"] = {
             displayInfo = "Étape 1 / 7 -- Fabriquer x1 Le S'Mesme",
             ["EXECUTE"] = function()
                 if inventory:itemCount(16512) < 2 then -- Plume chimérique
-                    MIN_MONSTERS = 1
-                    MAX_MONSTERS = 2
-
-                    FORCE_MONSTERS = {970}
-
+                    Movement:EditFightConfig(1, 4, {970})
                     Movement:Fight()
                     Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Champs"))
                 elseif inventory:itemCount(303) < 2 then -- Frêne
@@ -2176,10 +2351,7 @@ Quest.QuestSolution["Boune un jour, boune toujours"] = {
             displayInfo = "Étape 2 / 7 -- Fabriquer x1 Le Plussain",
             ["EXECUTE"] = function()
                 if inventory:itemCount(16518) < 2 then -- Feu Intérieur
-                    MIN_MONSTERS = 1
-                    MAX_MONSTERS = 4
-
-                    FORCE_MONSTERS = {}
+                    Movement:EditFightConfig(1, 4)
 
                     if Movement:InMapChecker(Movement:Get_TblZoneSubArea("Incarnam", "Route des âmes")) then
                         Movement:Fight()
@@ -2210,11 +2382,7 @@ Quest.QuestSolution["Boune un jour, boune toujours"] = {
             displayInfo = "Étape 3 / 7 -- Fabriquer x1 Les Incrustes",
             ["EXECUTE"] = function()
                 if inventory:itemCount(16513) < 2 then -- Pétale Diaphane
-                    MIN_MONSTERS = 1
-                    MAX_MONSTERS = 4
-
-                    FORCE_MONSTERS = {970}
-
+                    Movement:EditFightConfig(1, 4, {970})
                     Movement:Fight()
                     Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Champs"))
                 elseif inventory:itemCount(303) < 2 then -- Frêne
@@ -2241,10 +2409,7 @@ Quest.QuestSolution["Boune un jour, boune toujours"] = {
             displayInfo = "Étape 4 / 7 -- Fabriquer x1 La Spamette",
             ["EXECUTE"] = function()
                 if inventory:itemCount(16522) < 2 then -- Peau de gloot
-                    MIN_MONSTERS = 1
-                    MAX_MONSTERS = 4
-
-                    FORCE_MONSTERS = {}
+                    Movement:EditFightConfig(1, 4)
 
                     if Movement:InMapChecker(Movement:Get_TblZoneSubArea("Incarnam", "Lac")) then
                         Movement:Fight()
@@ -2274,10 +2439,7 @@ Quest.QuestSolution["Boune un jour, boune toujours"] = {
             displayInfo = "Étape 5 / 7 -- Fabriquer x1 La Cape S'loque",
             ["EXECUTE"] = function()
                 if inventory:itemCount(1984) < 2 then -- Cendres éternelles
-                    MIN_MONSTERS = 1
-                    MAX_MONSTERS = 4
-
-                    FORCE_MONSTERS = {}
+                    Movement:EditFightConfig(1, 4)
 
                     if Movement:InMapChecker(Movement:Get_TblZoneSubArea("Incarnam", "Route des âmes")) then
                         Movement:Fight()
@@ -2307,10 +2469,7 @@ Quest.QuestSolution["Boune un jour, boune toujours"] = {
             displayInfo = "Étape 6 / 7 -- Fabriquer x1 Le Floude",
             ["EXECUTE"] = function()
                 if inventory:itemCount(16511) < 2 then -- Laine céleste
-                    MIN_MONSTERS = 1
-                    MAX_MONSTERS = 4
-
-                    FORCE_MONSTERS = {}
+                    Movement:EditFightConfig(1, 4)
 
                     if Movement:InMapChecker(Movement:Get_TblZoneSubArea("Incarnam", "Pâturages")) then
                         Movement:Fight()
@@ -2370,20 +2529,14 @@ Quest.QuestSolution["Le choix des armes"] = {
             displayInfo = "Étape 1 / 4 -- Fabriquer x1 Demi-Baguette",
             ["EXECUTE"] = function()
                 if inventory:itemCount(16513) < 3 then -- Pétale Diaphane
-                    MIN_MONSTERS = 1
-                    MAX_MONSTERS = 4
-
-                    FORCE_MONSTERS = {970}
+                    Movement:EditFightConfig(1, 4, {970})
 
                     if Movement:InMapChecker(Movement:Get_TblZoneSubArea("Incarnam", "Champs")) then
                         Movement:Fight()
                     end
                     Movement:RoadZone(Get_TblZoneSubArea("Incarnam", "Champs"))
                 elseif inventory:itemCount(16511) < 3 then -- Laine céleste
-                    MIN_MONSTERS = 1
-                    MAX_MONSTERS = 4
-
-                    FORCE_MONSTERS = {}
+                    Movement:EditFightConfig(1, 4)
 
                     if Movement:InMapChecker(Movement:Get_TblZoneSubArea("Incarnam", "Pâturages")) then
                         Movement:Fight()
@@ -2408,10 +2561,7 @@ Quest.QuestSolution["Le choix des armes"] = {
             displayInfo = "Étape 2 / 4 -- Fabriquer x1 Hachette de bûcheron",
             ["EXECUTE"] = function()
                 if inventory:itemCount(16511) < 5 then -- Laine céleste
-                    MIN_MONSTERS = 1
-                    MAX_MONSTERS = 4
-
-                    FORCE_MONSTERS = {}
+                    Movement:EditFightConfig(1, 4)
 
                     if Movement:InMapChecker(Movement:Get_TblZoneSubArea("Incarnam", "Pâturages")) then
                         Movement:Fight()
@@ -2441,20 +2591,14 @@ Quest.QuestSolution["Le choix des armes"] = {
             displayInfo = "Étape 3 / 4 -- Fabriquer x1 Clef de la crypte de kardorim",
             ["EXECUTE"] = function()
                 if inventory:itemCount(16524) < 3 then -- Relique d'incarnam
-                    MIN_MONSTERS = 1
-                    MAX_MONSTERS = 4
-
-                    FORCE_MONSTERS = {}
+                    Movement:EditFightConfig(1, 4)
 
                     if Movement:InMapChecker(Movement:Get_TblZoneSubArea("Incarnam", "Cimetière")) then
                         Movement:Fight()
                     end
                     Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Cimetière"))
                 elseif inventory:itemCount(1984) < 5 then -- Cendre éternelles
-                    MIN_MONSTERS = 1
-                    MAX_MONSTERS = 4
-
-                    FORCE_MONSTERS = {}
+                    Movement:EditFightConfig(1, 4)
 
                     if Movement:InMapChecker(Movement:Get_TblZoneSubArea("Incarnam", "Route des âmes")) then
                         Movement:Fight()
@@ -2487,254 +2631,525 @@ Quest.QuestSolution["Le choix des armes"] = {
     }
 }
 
-Quest.QuestSolution["Drop pano Piou"] = {
-    questId = 0000000001,
-    minLevel = 12,
-    colorPano = "",
-    idPano = {
-        ["Coiffe"] = {
-            ["Rouge"] = 8243,
-            ["Bleu"] = 8244,
-            ["Violet"] = 8245,
-            ["Vert"] = 8246,
-            ["Jaune"] = 8247,
-            ["Rose"] = 8248
-        },
-        ["Cape"] = {
-            ["Rouge"] = 8231,
-            ["Bleu"] = 8232,
-            ["Violet"] = 8234,
-            ["Vert"] = 8233,
-            ["Jaune"] = 8236,
-            ["Rose"] = 8235
-        },
-        ["Ceinture"] = {
-            ["Rouge"] = 8237,
-            ["Bleu"] = 8238,
-            ["Violet"] = 8239,
-            ["Vert"] = 8240,
-            ["Jaune"] = 8241,
-            ["Rose"] = 8242
-        },
-        ["Bottes"] = {
-            ["Rouge"] = 8225,
-            ["Bleu"] = 8226,
-            ["Violet"] = 8227,
-            ["Vert"] = 8228,
-            ["Jaune"] = 8229,
-            ["Rose"] = 8230
-        },
-        ["Anneau"] = {
-            ["Rouge"] = 8219,
-            ["Bleu"] = 8220,
-            ["Violet"] = 8221,
-            ["Vert"] = 8222,
-            ["Jaune"] = 8223,
-            ["Rose"] = 8234
-        },
-        ["Amulette"] = {
-            ["Rouge"] = 8213,
-            ["Bleu"] = 8214,
-            ["Violet"] = 8215,
-            ["Vert"] = 8216,
-            ["Jaune"] = 8217,
-            ["Rose"] = 8218
-        }
-    },
-    idMonsters = {
-        ["Rouge"] = 489,
-        ["Bleu"] = 491,
-        ["Violet"] = 236,
-        ["Vert"] = 490,
-        ["Jaune"] = 493,
-        ["Rose"] = 492
-    },
-    getIdPano = function(item)
-        for kItem, vTblId in pairs(Quest.CurrentQuestToDo.idPano) do
-            if Utils:Equal(kItem, item) then
-                for kColor, id in pairs(vTblId) do
-                    if Utils:Equal(kColor, Quest.CurrentQuestToDo.colorPano) then
-                        return id
-                    end
-                end
-            end
-        end
-    end,
-    getIdMonster = function()
-        for kColor, id in pairs(Quest.CurrentQuestToDo.idMonsters) do
-            if Utils:Equal(kColor, Quest.CurrentQuestToDo.colorPano) then
-                return id
-            end
-        end
-    end,
-    stepSolution = { 
+Quest.QuestSolution["La galette secrète"] = {
+    questId = 1637,
+    stepSolution = {
         ["START"] = {
-            displayInfo = "Étape 0 / 6 -- Start",
+            displayInfo = "Étape 0 / 5 -- Récupérer la quête",
+            stepStartMapId = 153879298,
             ["EXECUTE"] = function()
-                local objecttives = {
-                    {
-                        objecttiveId = 1,
-                        objecttiveStatus = true
-                    },
-                    {
-                        objecttiveId = 2,
-                        objecttiveStatus = true
-                    },
-                    {
-                        objecttiveId = 3,
-                        objecttiveStatus = true
-                    },
-                    {
-                        objecttiveId = 4,
-                        objecttiveStatus = true
-                    },
-                    {
-                        objecttiveId = 5,
-                        objecttiveStatus = true
-                    },
-                    {
-                        objecttiveId = 6,
-                        objecttiveStatus = true
-                    }
+                local possibleIdReply = {
+                    25216,
+                    25214,
+                    25213,
+                    25212
                 }
 
-                local tblPanoId = {}
+                Dialog:NpcDialogRequest(-20000)
+                Dialog:NpcReplyUntilLeave(possibleIdReply)
+            end
+        },
+        ["9805"] = {
+            displayInfo = "Étape 1 / 5 -- Lire la recette de la galette d'Incarnam",
+            ["EXECUTE"] = function()
+                inventory:useItem(16517)
+                global:leaveDialog()
+            end
+        },
+        ["9806"] = {
+            displayInfo = "Étape 2 / 5 -- Fabriquer x1 Galette d'Incarnam",
+            ["EXECUTE"] = function()
+                if inventory:itemCount(289) < 10 then -- Blé
+                    GATHER = {38}
 
-                for item, _ in pairs(Quest.CurrentQuestToDo.idPano) do
-                    table.insert(tblPanoId, Quest.CurrentQuestToDo.getIdPano(item))
-                end
+                    map:gather()
+                    Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", "Champs"))
+                elseif inventory:itemCount(519) < 4 then -- Poudre de perlinpainpain
+                    local tblMapId = Movement:Get_TblZoneSubArea("Incarnam", "Champs")
 
-                local isAlreadyStuff = function(tbl)
-                    for _, v in pairs(tbl) do
-                        if inventory:itemCount(v) < 1 then
-                            return false
-                        end
+                    Movement:EditFightConfig(1, 4)
+
+                    if Movement:InMapChecker(tblMapId) then
+                        Movement:Fight()
                     end
-                    return true
-                end
+                    Movement:RoadZone(tblMapId)
+                elseif inventory:itemCount(367) < 2 then -- Oeufs de tofu
+                    local tblMapId = Movement:Get_TblZoneSubArea("Incarnam", "Champs")
 
-                if isAlreadyStuff(tblPanoId) then
-                    Quest.QuestValidated = true
+                    Movement:EditFightConfig(1, 4, {970})
+
+                    if Movement:InMapChecker(tblMapId) then
+                        Movement:Fight()
+                    end
+                    Movement:RoadZone(tblMapId)
+                elseif inventory:itemCount(6765) < 1 then -- LaitLait
+                    Movement:LoadRoad(153357316)
+
+                    if map:currentMapId() == 153357316 then
+                        Dialog:NpcDialogRequest(-20001)
+                        Dialog:NpcReply(25036)
+                        Dialog:NpcReply(25035)
+                    else
+                        Movement:MoveNext()
+                    end
+                elseif inventory:itemCount(1984) < 4 then -- Cendres éternelles
+                    local tblMapId = Movement:Get_TblZoneSubArea("Incarnam", "Route des âmes")
+
+                    Movement:EditFightConfig(1, 4)
+
+                    if Movement:InMapChecker(tblMapId) then
+                        Movement:Fight()
+                    end
+                    Movement:RoadZone(tblMapId)
+                elseif inventory:itemCount(385) < 4 then -- Bave de bouftout
+                    local tblMapId = Movement:Get_TblZoneSubArea("Incarnam", "Pâturages")
+
+                    Movement:EditFightConfig(1, 4)
+
+                    if Movement:InMapChecker(tblMapId) then
+                        Movement:Fight()
+                    end
+                    Movement:RoadZone(tblMapId)
+
                 else
-                    Quest:AddActiveQuest(0000000001, objecttives)
-                    Movement:GoAstrub()
-                    if Utils:Equal(map:currentArea(), "Astrub") then
-                        Quest.StepValidated = true
+                    Movement:LoadRoad(153354242)
+
+                    if map:currentMapId() == 153354242 then
+                        map:useById(489524, -1)
+                        craft:putItem(289, 10)
+                        craft:putItem(519, 4)
+                        craft:putItem(367, 2)
+                        craft:putItem(6765, 1)
+                        craft:putItem(1984, 4)
+                        craft:putItem(385, 4)
+                        craft:ready()
+                        global:leaveDialog()
+                    else
+                        Movement:MoveNext()
                     end
                 end
             end
         },
-        ["1"] = {
-            displayInfo = "Étape 1 / 6 -- Drop cape Piou",
+        ["9807"] = {
+            displayInfo = "Étape 3 / 5 -- Retourner voir AntaBrok",
+            stepStartMapId = 153879298,
             ["EXECUTE"] = function()
-                local tblMapId = Movement:Get_TblZoneSubArea("Astrub", "Cité d'Astrub")
+                Dialog:NpcDialogRequest(-20000)
+                Dialog:NpcReply(25218)
+                Dialog:NpcReply(25217)
+            end
+        },
+        ["9808"] = {
+            displayInfo = "Étape 4 / 5 -- Allez voir Pipelette",
+            ["EXECUTE"] = function()
+                if inventory:itemCount(421) < 5 then -- Ortie
+                    GATHER = {254}
 
-                MIN_MONSTERS = 1
-                MAX_MONSTERS = 2
-
-                FORCE_MONSTERS = {Quest.CurrentQuestToDo.getIdMonster()}
-
-                if inventory:itemCount(Quest.CurrentQuestToDo.getIdPano("Cape")) > 0 then
-                    Quest:EditQuestObjecttives(0000000001, 1, false)
-                    Quest.StepValidated = true
+                    map:gather()
+                    Movement:RoadZone(Movement:Get_TblZoneSubArea("Incarnam", {"Forêt", "Lac", "Pâturages", "Route des âmes", "Champs"}))
                 else
-                    Movement:Fight()
-                    Movement:RoadZone(tblMapId)
+                    Movement:LoadRoad(153879811)
+
+                    if map:currentMapId() == 153879811 then -- Execution étape
+                        Dialog:NpcDialogRequest(-20002)
+                        Dialog:NpcReply(25229)
+                        Dialog:NpcReply(25228)
+                        Dialog:NpcReply(25227)
+                        Dialog:NpcReply(25226)
+                    else
+                        Movement:MoveNext()
+                    end
                 end
             end
         },
-        ["2"] = {
-            displayInfo = "Étape 2 / 6 -- Drop coiffe Piou",
+        ["FINISH"] = {
+            displayInfo = "Étape 5 / 5 -- Montrer à Anta Brok 1 Pot de confiture Maison",
+            stepStartMapId = 153879298,
             ["EXECUTE"] = function()
-                local tblMapId = Movement:Get_TblZoneSubArea("Astrub", "Cité d'Astrub")
+                local possibleIdReply = {
+                    25224,
+                    25221,
+                    25220,
+                    25219
+                }
 
-                MIN_MONSTERS = 1
-                MAX_MONSTERS = 2
+                Dialog:NpcDialogRequest(-20000)
+                Dialog:NpcReplyUntilLeave(possibleIdReply)
+            end
+        }
+    }
+}
 
-                FORCE_MONSTERS = {Quest.CurrentQuestToDo.getIdMonster()}
+Quest.QuestSolution["Mort au rat !"] = {
+    questId = 1633,
+    stepSolution = {
+        ["START"] = {
+            displayInfo = "Étape 0 / 4 -- Récupérer la quête",
+            stepStartMapId = 153878787,
+            ["EXECUTE"] = function()
+                map:useById(489412, -1)
+                Packet:PacketSender("QuestStartRequestMessage", function(msg)
+                    msg.questId = 1633
+                    return msg
+                end)
+                global:leaveDialog()
+            end
+        },
+        ["9895"] = {
+            displayInfo = "Étape 1 / 4 -- Inspecter la cave",
+            stepStartMapId = 153358340,
+            ["EXECUTE"] = function()
+                map:useById(489505, -1)
+            end
+        },
+        ["9769"] = {
+            displayInfo = "Étape 2 / 4 -- Faire sortir le rat de sa cachette",
+            ["EXECUTE"] = function()
+                if inventory:itemCount(8543) < 1 then -- Limonade d'incarnam
+                    Movement:LoadRoad(153357316)
 
-                if inventory:itemCount(Quest.CurrentQuestToDo.getIdPano("Coiffe")) > 0 then
-                    Quest:EditQuestObjecttives(0000000001, 2, false)
-                    Quest.StepValidated = true
+                    if map:currentMapId() == 153357316 then
+                        Dialog:NpcDialogRequest(-20001)
+                        Dialog:NpcReply(25036)
+                        Dialog:NpcReply(25034)
+                    else
+                        Movement:MoveNext()
+                    end
+
                 else
-                    Movement:Fight()
-                    Movement:RoadZone(tblMapId)
+                    Movement:LoadRoad(153358340)
+
+                    if map:currentMapId() == 153358340 then
+                        map:useById(489505, -1)
+                    else
+                        Movement:MoveNext()
+                    end
                 end
             end
-        }, 
-        ["3"] = {
-            displayInfo = "Étape 3 / 6 -- Drop anneau Piou",
+        },
+        ["9770"] = {
+            displayInfo = "Étape 3 / 4 -- Vaincre x1 Rat Soiffé",
+            stepStartMapId = 153358340,
             ["EXECUTE"] = function()
-                local tblMapId = Movement:Get_TblZoneSubArea("Astrub", "Cité d'Astrub")
+                Dialog:NpcDialogRequest(-20000)
+                Dialog:NpcReply(25037)
+            end
+        },
+        ["FINISH"] = {
+            displayInfo = "Étape 4 / 4 -- Allez voir Grobid",
+            stepStartMapId = 153357316,
+            ["EXECUTE"] = function()
+                local possibleIdReply = {
+                    25033,
+                    25032
+                }
 
-                MIN_MONSTERS = 1
-                MAX_MONSTERS = 2
+                Dialog:NpcDialogRequest(-20001)
+                Dialog:NpcReplyUntilLeave(possibleIdReply)
+            end
+        }
+    }
+}
 
-                FORCE_MONSTERS = {Quest.CurrentQuestToDo.getIdMonster()}
+Quest.QuestSolution["Cryptologie"] = {
+    questId = 1638,
+    minLevel = 12,
+    goDj = function()
+        if inventory:itemCount(8545) < 1 then -- Clef de la crypte de kardorim
+            Quest.CurrentQuestToDo.craftKey()
+        else
+            local possibleIdReply = {
+                24967,
+                24966,
+                24973,
+                24970,
+                24968,
+                24971
+            }
 
-                if inventory:itemCount(Quest.CurrentQuestToDo.getIdPano("Anneau")) > 0 then
-                    Quest:EditQuestObjecttives(0000000001, 3, false)
-                    Quest.StepValidated = true
+            Movement:LoadRoad(153881600)
+
+            if map:currentMapId() == 153881600 then -- Execution étape
+                Dialog:NpcDialogRequest(-20000)
+                Dialog:NpcReplyUntilLeave(possibleIdReply)
+            else
+                Movement:MoveNext()
+            end
+        end
+    end,
+    craftKey = function()
+        if inventory:itemCount(16524) < 3 then -- Relique d'incarnam
+            local tblMapId = Movement:Get_TblZoneSubArea("Incarnam", "Cimetière")
+            Movement:EditFightConfig(1, 4)
+
+            if Movement:InMapChecker(tblMapId) then
+                Movement:Fight()
+            end
+            Movement:RoadZone(tblMapId)
+        elseif inventory:itemCount(1984) < 5 then -- Cendre éternelles
+            local tblMapId = Movement:Get_TblZoneSubArea("Incarnam", "Route des âmes")
+            Movement:EditFightConfig(1, 4)
+
+            if Movement:InMapChecker(tblMapId) then
+                Movement:Fight()
+            end
+            Movement:RoadZone(tblMapId)
+        else
+            Movement:LoadRoad(153354248)
+            if map:currentMapId() == 153354248 then -- Execution étape
+                map:useById(490183, -1)
+                craft:putItem(16524, 3)
+                craft:putItem(1984, 5)
+                craft:ready()
+                global:leaveDialog()
+            else
+                Movement:MoveNext()
+            end
+        end
+    end,
+    stepSolution = {
+        ["START"] = {
+            displayInfo = "Étape 0 / 3 -- Récupérer la quête",
+            ["EXECUTE"] = function()
+                if inventory:itemCount(8545) < 1 then -- Clef de la crypte de kardorim
+                    Quest.CurrentQuestToDo.craftKey()
                 else
-                    Movement:Fight()
-                    Movement:RoadZone(tblMapId)
+                    local possibleIdReply = {
+                        24973,
+                        24970,
+                        24971
+                    }
+
+                    Movement:LoadRoad(153881600)
+
+                    if map:currentMapId() == 153881600 then -- Execution étape
+                        Dialog:NpcDialogRequest(-20000)
+                        Dialog:NpcReplyUntilLeave(possibleIdReply)
+                    else
+                        Movement:MoveNext()
+                    end
                 end
             end
-        }, 
-        ["4"] = {
-            displayInfo = "Étape 4 / 6 -- Drop bottes Piou",
+        },
+        ["9811"] = {
+            displayInfo = "Étape 1 / 3 -- Découvrir la carte : Salle du tombeau de kardorim",
             ["EXECUTE"] = function()
-                local tblMapId = Movement:Get_TblZoneSubArea("Astrub", "Cité d'Astrub")
-
-                MIN_MONSTERS = 1
-                MAX_MONSTERS = 2
-
-                FORCE_MONSTERS = {Quest.CurrentQuestToDo.getIdMonster()}
-
-                if inventory:itemCount(Quest.CurrentQuestToDo.getIdPano("Bottes")) > 0 then
-                    Quest:EditQuestObjecttives(0000000001, 4, false)
-                    Quest.StepValidated = true
+                if not Movement:InMapChecker(Movement:Get_TblZoneSubArea("Incarnam", "Crypte de Kardorim")) then
+                    Quest.CurrentQuestToDo.goDj()
                 else
-                    Movement:Fight()
-                    Movement:RoadZone(tblMapId)
+                    Movement:EditFightConfig(1, 8)
+                    while true do
+                        Movement:Fight()
+                        global:delay(1)
+                    end
                 end
             end
-        },       
-        ["5"] = {
-            displayInfo = "Étape 5 / 6 -- Drop ceinture Piou",
+        },
+        ["9812"] = {
+            displayInfo = "Étape 2 / 3 -- Vaincre x1 Kardorim",
             ["EXECUTE"] = function()
-                local tblMapId = Movement:Get_TblZoneSubArea("Astrub", "Cité d'Astrub")
-
-                MIN_MONSTERS = 1
-                MAX_MONSTERS = 2
-
-                FORCE_MONSTERS = {Quest.CurrentQuestToDo.getIdMonster()}
-
-                if inventory:itemCount(Quest.CurrentQuestToDo.getIdPano("Ceinture")) > 0 then
-                    Quest:EditQuestObjecttives(0000000001, 5, false)
-                    Quest.StepValidated = true
+                if not Movement:InMapChecker(Movement:Get_TblZoneSubArea("Incarnam", "Crypte de Kardorim")) then
+                    Quest.CurrentQuestToDo.goDj()
                 else
-                    Movement:Fight()
-                    Movement:RoadZone(tblMapId)
+                    Movement:EditFightConfig(1, 8)
+                    while true do
+                        Movement:Fight()
+                        global:delay(1)
+                    end
                 end
             end
-        },       
-        ["6"] = {
-            displayInfo = "Étape 6 / 6 -- Drop amulette Piou",
+        },
+        ["FINISH"] = {
+            displayInfo = "Étape 3 / 3 -- Allez voir Kardorim",
             ["EXECUTE"] = function()
-                local tblMapId = Movement:Get_TblZoneSubArea("Astrub", "Cité d'Astrub")
-
-                MIN_MONSTERS = 1
-                MAX_MONSTERS = 2
-
-                FORCE_MONSTERS = {Quest.CurrentQuestToDo.getIdMonster()}
-
-                if inventory:itemCount(Quest.CurrentQuestToDo.getIdPano("Amulette")) > 0 then
-                    Quest.QuestValidated = true
-                else
-                    Movement:Fight()
-                    Movement:RoadZone(tblMapId)
+                if not Movement:InMapChecker(Movement:Get_TblZoneSubArea("Incarnam", "Crypte de Kardorim")) then
+                    Quest.CurrentQuestToDo.goDj()
+                elseif map:currentMapId() ~= 152835072 then
+                    Movement:EditFightConfig(1, 8)
+                    while true do
+                        Movement:Fight()
+                        global:delay(1)
+                    end
+                elseif map:currentMapId() == 152835072 then
+                    Dialog:NpcDialogRequest(-20000)
+                    Dialog:NpcReply(24993)
+                    Dialog:NpcReply(24992)
+                    Dialog:NpcReply(25000)
                 end
+            end
+        }
+    }
+}
+
+Quest.QuestSolution["Un peu de pigment"] = {
+    questId = 1655,
+    stepSolution = { 
+        ["START"] = {
+            displayInfo = "Étape 0 / 1 -- Récupérer la quête",
+            stepStartMapId = 153880325,
+            ["EXECUTE"] = function()
+                local possibleIdReply = {
+                    25487,
+                    25486,
+                    25485
+                }
+
+                Dialog:NpcDialogRequest(-20000)
+                Dialog:NpcReplyUntilLeave(possibleIdReply)
+            end
+        },
+        ["FINISH"] = {
+            displayInfo = "Étape 1 / 1 -- Ramener à Marylock : x3 Poudre d'Aminite",
+            ["EXECUTE"] = function()
+                if inventory:itemCount(16999) < 3 then -- Relique d'incarnam
+                    local tblMapId = Movement:Get_TblZoneSubArea("Incarnam", "Mine")
+                    Movement:EditFightConfig(1, 4)
+
+                    if Movement:InMapChecker(tblMapId) then
+                        Movement:Fight()
+                    end
+                    Movement:RoadZone(tblMapId)
+                else
+                    Movement:LoadRoad(153880325)
+
+                    if map:currentMapId() == 153880325 then -- Execution étape
+                        Dialog:NpcDialogRequest(-20000)
+                        Dialog:NpcReply(25489)
+                    else
+                        Movement:MoveNext()
+                    end
+                end
+            end
+        }
+    }
+}
+
+Quest.QuestSolution["Dans la gueule du Milimilou"] = {
+    questId = 1635,
+    minLevel = 12,
+    requiredFinishedQuest = { 1634 },
+    stepInfo = {
+        ["START"] = {
+            displayInfo = "Étape 0 / 5 -- Récupérer la quête",
+            stepStartMapId = 153356296,
+            ["EXECUTE"] = function()
+                local possibleIdReply = {
+                    25118,
+                    25117,
+                    25116,
+                    25115,
+                    25114
+                }
+
+                Dialog:NpcDialogRequest(-20000)
+                Dialog:NpcReplyUntilLeave(possibleIdReply)
+            end
+        },
+        ["9783"] = {
+            displayInfo = "Étape 1 / 5 -- Allez voir Klasmor le fossoyeur",
+            stepStartMapId = 153881600,
+            ["EXECUTE"] = function()
+                local possibleIdReply = {
+                    24989,
+                    24988,
+                    24987
+                }
+
+                Dialog:NpcDialogRequest(-20000)
+                Dialog:NpcReplyUntilLeave(possibleIdReply)
+            end
+        },
+        ["9784"] = {
+            displayInfo = "Étape 2 / 5 -- Pénétrer dans l'antre du Milimilou",
+            stepStartMapId = 152836096,
+            ["EXECUTE"] = function()
+            end
+        },
+        ["9785"] = {
+            displayInfo = "Étape 3 / 5 -- Vaincre le Milimilou",
+            stepStartMapId = 152836096,
+            ["EXECUTE"] = function()
+                Dialog:NpcDialogRequest(-20000)
+                Dialog:NpcReply(25004)
+            end
+        },
+        ["9786"] = {
+            displayInfo = "Étape 4 / 5 -- Allez voir Hargnok",
+            stepStartMapId = 152836096,
+            ["EXECUTE"] = function()
+                local possibleIdReply = {
+                    25013,
+                    25012,
+                    25011
+                }
+
+                Dialog:NpcDialogRequest(-20001)
+                Dialog:NpcReplyUntilLeave(possibleIdReply)
+            end
+        },
+        ["FINISH"] = {
+            displayInfo = "Étape 5 / 5 -- Retourner voir Fécaline la Sage",
+            stepStartMapId = 153356296,
+            ["EXECUTE"] = function()
+                Dialog:NpcDialogRequest(-20000)
+                Dialog:NpcReply(25124)
+            end
+        },
+    }
+}
+
+Quest.QuestSolution["Destination Astrub"] = {
+    questId = 2004,
+    requiredFinishedQuest = { 1635 },
+    stepSolution = {
+        ["START"] = {
+            displayInfo = "Étape 0 / 5 -- Récupérer la quête",
+            stepStartMapId = 153356296,
+            ["EXECUTE"] = function()
+                local possibleIdReply = {
+                    25124,
+                    25123,
+                    25119,
+                    25115,
+                    25114
+                }
+
+                Dialog:NpcDialogRequest(-20000)
+                Dialog:NpcReplyUntilLeave(possibleIdReply)
+            end
+        },
+        ["13767"] = {
+            displayInfo = "Étape 1 / 3 -- Allez voir Maître Anemo",
+            stepStartMapId = 153880835,
+            ["EXECUTE"] = function()
+                local possibleIdReply = {
+                    36613,
+                    36621
+                }
+
+                Dialog:NpcDialogRequest(-20002)
+                Dialog:NpcReplyUntilLeave(possibleIdReply)
+            end
+        },
+        ["13931"] = {
+            displayInfo = "Étape 2 / 3 -- Utiliser le portail pour se à Astrub sur le Monde des Douze",
+            stepStartMapId = 153880835,
+            ["EXECUTE"] = function()
+                local possibleIdReply = {
+                    36982,
+                    36980
+                }
+
+                Dialog:NpcDialogRequest(-20001)
+                Dialog:NpcReplyUntilLeave(possibleIdReply)
+            end
+        },
+        ["FINISH"] = {
+            displayInfo = "Étape 3 / 3 -- Allez voir l'Envoyée des Douze",
+            stepStartMapId = 192416776,
+            ["EXECUTE"] = function()
+                    Dialog:NpcDialogRequest(-20000)
+                    Dialog:NpcReply(36744)
             end
         }
     }
