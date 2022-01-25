@@ -1340,6 +1340,7 @@ Quest.QuestSolution["Le village dans les nuages"] = {
             displayInfo = "Étape 0 / 7 -- Récupérer la quête",
             stepStartMapId = 154010883,
             ["EXECUTE"] = function()
+                npc:npc(2892, 3)
                 local possibleIdReply = {
                     24901,
                     24899,
@@ -1442,6 +1443,7 @@ Quest.QuestSolution["Le village dans les nuages"] = {
             displayInfo = "Étape 7 / 7 -- Aller voir Fécaline la sage",
             stepStartMapId = 153356296,
             ["EXECUTE"] = function()
+                -- je me suis tromper de ligne
                 local possibleIdReply = {
                     25108,
                     25107,
@@ -1497,6 +1499,7 @@ Quest.QuestSolution["Espoirs et tragédies"] = {
             displayInfo = "Étape 3 / 7 -- Parler a un vieux de la vieille",
             stepStartMapId = 154010883,
             ["EXECUTE"] = function()
+                npc:npc(2892, 3)
                 local possibleIdReply = {
                     24918,
                     24917,
